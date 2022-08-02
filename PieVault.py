@@ -14,7 +14,6 @@ pip install pycryptodome
 '''
 # Import libraries
 import os
-import csv
 import time
 import platform
 import sys
@@ -83,7 +82,26 @@ def decrypt(strkey, strData, decode=True):
   return bClear.decode("UTF-8")
 
 
+def DefineMenu():
+  global dictMenu
+
+  dictMenu = {}
+  dictMenu["help"] = "Displays this message. Can also use /h -h and --help"
+  dictMenu["interactive"] = "Use interactive mode, where you always go back to the menu. Can also use /i and -i. Use quit to exit interactive mode"
+  dictMenu["reset"] = "Reset and initialize everything"
+  dictMenu["add"] = "Adds a new entry to a specified list"
+  dictMenu["list"] = "List out all entries of a specified list"
+
+
+def DisplayHelp():
+  print("\nHere are the commands you can use:")
+  for strItem in dictMenu:
+    print("{} : {}".format(strItem, dictMenu[strItem]))
+
+
 def main():
+
+  DefineMenu()
   lstSysArg = sys.argv
 
   strBaseDir = os.path.dirname(sys.argv[0])
@@ -105,9 +123,36 @@ def main():
   dtNow = time.asctime()
   print("The time now is {}".format(dtNow))
   if os.getenv("VAULT") != "" and os.getenv("VAULT") is not None:
-    strVAULT = os.getenv("VAULT")
+    strVault = os.getenv("VAULT")
   else:
     print("no VAULT environment valuable")
+
+  if len(lstSysArg) > 1:
+    if lstSysArg[1][:5].lower() == "vault":
+      strVault = lstSysArg[1][6:]
+      print("Using vault from argument: {}".format(strVault))
+    else:
+      strVault = ""
+  else:
+    strVault = ""
+  if strVault == "":
+    strVault = strBaseDir + "PieVault/"
+
+  print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
+  if not os.path.exists(strVault):
+    os.makedirs(strVault)
+    print(
+        "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
+  strPWD = input("Please provide vault password: ")
+  strCheckValue = "This is a simple password vault"
+
+  print("key:  {}".format(strPWD))
+  print("data: {}".format(strCheckValue))
+  encrypted = encrypt(strPWD, strCheckValue)
+  print("\nenc:  {}".format(encrypted))
+  decrypted = decrypt(strPWD, encrypted)
+  print("dec:  {}".format(decrypted))
+  print("\ndata match: {}".format(strCheckValue == decrypted))
 
 
 if __name__ == '__main__':
