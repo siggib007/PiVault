@@ -10,12 +10,12 @@ Encrypt/decrypt functions copied from https://stackoverflow.com/a/44212550/85494
 
 Following packages need to be installed
 pip install pycryptodome
+pip install maskpass
 
 '''
 # Import libraries
 import os
 import time
-import platform
 import sys
 import subprocess
 import base64
@@ -30,6 +30,13 @@ finally:
   from Crypto.Cipher import AES
   from Crypto.Hash import SHA256
   from Crypto import Random
+try:
+  import maskpass
+except ImportError:
+  subprocess.check_call(
+      [sys.executable, "-m", "pip", "install", 'maskpass'])
+finally:
+  import maskpass
 
 # End imports
 
@@ -45,15 +52,12 @@ def encrypt(strkey, strData, encode=True):
     Encrypted string, either raw or base64 encoded depending on the encode parameter
   """
   bKey = bytes(strkey, "UTF-8")
-  bData = bytes(strData, "UTF-8")
-  # use SHA-256 over our key to get a proper-sized AES key
+  bData = bytes(strData, "UTF-8")  # use SHA-256 over our key to get a proper-sized AES key
   hKey = SHA256.new(bKey).digest()
   IV = Random.new().read(AES.block_size)  # generate IV
-  objEncryptor = AES.new(hKey, AES.MODE_CBC, IV)
-  # calculate needed padding
+  objEncryptor = AES.new(hKey, AES.MODE_CBC, IV)  # calculate needed padding
   iPadLen = AES.block_size - len(bData) % AES.block_size
-  bData += bytes([iPadLen]) * iPadLen
-  # store the IV at the beginning and encrypt
+  bData += bytes([iPadLen]) * iPadLen  # store the IV at the beginning and encrypt
   oEncrypted = IV + objEncryptor.encrypt(bData)
   return base64.b64encode(oEncrypted).decode("UTF-8") if encode else oEncrypted
 
@@ -82,25 +86,64 @@ def decrypt(strkey, strData, decode=True):
   return bClear.decode("UTF-8")
 
 
+def OpenFile(strFileName, strperm):
+  try:
+    objFileOut = open(strFileName, strperm, encoding='utf8')
+    return objFileOut
+  except PermissionError:
+    print("unable to open output file {} for writing, "
+              "permission denied.".format(strFileName))
+    return("Permission denied")
+  except FileNotFoundError:
+    print("unable to open output file {} for writing, "
+              "Issue with the path".format(strFileName))
+    return("file not found")
+
 def DefineMenu():
   global dictMenu
 
   dictMenu = {}
   dictMenu["help"] = "Displays this message. Can also use /h -h and --help"
-  dictMenu["interactive"] = "Use interactive mode, where you always go back to the menu. Can also use /i and -i. Use quit to exit interactive mode"
-  dictMenu["reset"] = "Reset and initialize everything"
-  dictMenu["add"] = "Adds a new entry to a specified list"
-  dictMenu["list"] = "List out all entries of a specified list"
+  dictMenu["quit"] = "exit out of the script"
+  dictMenu["add"] = "Adds a new key value pair"
+  dictMenu["list"] = "List out all keys"
+  dictMenu["fetch"] = "fetch a specified key"
 
 
 def DisplayHelp():
   print("\nHere are the commands you can use:")
   for strItem in dictMenu:
-    print("{} : {}".format(strItem, dictMenu[strItem]))
+    if len(lstVault) > 1:
+      print("{} : {}".format(strItem, dictMenu[strItem]))
+    elif strItem != "list" and strItem != "fetch":
+      print("{} : {}".format(strItem, dictMenu[strItem]))
 
+def ProcessCMD(strCmd):
+  global bCont
+  strCmd = strCmd.replace("-", "")
+  strCmd = strCmd.replace("/", "")
+  strCmd = strCmd.replace("\\", "")
+  strCmd = strCmd.replace("<", "")
+  strCmd = strCmd.replace(">", "")
+  strCmd = strCmd.lower()
+  if strCmd == "q" or strCmd == "quit" or strCmd == "exit":
+    bCont = False
+    print("Goodbye!!!")
+    return
+  if strCmd == "h":
+    strCmd = "help"
+  if strCmd not in dictMenu:
+    print("command {} not valid".format(strCmd))
+    return
+  if strCmd == "help":
+    DisplayHelp()
+  else:
+    print("Not implemented")
 
 def main():
 
+  global bCont
+  global lstVault
   DefineMenu()
   lstSysArg = sys.argv
 
@@ -112,10 +155,8 @@ def main():
     strBaseDir = strRealPath[:iLoc]
   if strBaseDir[-1:] != "/":
     strBaseDir += "/"
-  strScriptName = os.path.basename(sys.argv[0])
   strVersion = "{0}.{1}.{2}".format(
       sys.version_info[0], sys.version_info[1], sys.version_info[2])
-  strScriptHost = platform.node().upper()
 
   print("This is a simple password vault script. Enter in a key value pair and the value will be encrypted with AES and stored under the key."
         "This is running under Python Version {}".format(strVersion))
@@ -125,7 +166,7 @@ def main():
   if os.getenv("VAULT") != "" and os.getenv("VAULT") is not None:
     strVault = os.getenv("VAULT")
   else:
-    print("no VAULT environment valuable")
+    print("no vault environment valuable")
 
   if len(lstSysArg) > 1:
     if lstSysArg[1][:5].lower() == "vault":
@@ -136,23 +177,55 @@ def main():
   else:
     strVault = ""
   if strVault == "":
-    strVault = strBaseDir + "PieVault/"
+    strVault = strBaseDir + "PieVaultData/"
 
   print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
   if not os.path.exists(strVault):
     os.makedirs(strVault)
     print(
         "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
-  strPWD = input("Please provide vault password: ")
-  strCheckValue = "This is a simple password vault"
 
-  print("key:  {}".format(strPWD))
-  print("data: {}".format(strCheckValue))
-  encrypted = encrypt(strPWD, strCheckValue)
-  print("\nenc:  {}".format(encrypted))
-  decrypted = decrypt(strPWD, encrypted)
-  print("dec:  {}".format(decrypted))
-  print("\ndata match: {}".format(strCheckValue == decrypted))
+  strCheckValue = "This is a simple password vault"
+  bCont = False
+  lstVault = os.listdir(strVault)
+  if len(lstVault) == 0:
+    strPWD = maskpass.askpass(prompt="Please provide vault password: ",mask="*")
+    strFileOut = strVault + "VaultInit.txt"
+    tmpResponse = OpenFile(strFileOut, "w")
+    if isinstance(tmpResponse, str):
+      print(tmpResponse)
+    else:
+      objFileOut = tmpResponse
+    objFileOut.write(encrypt(strPWD, strCheckValue))
+    print("Vault Initialized")
+    objFileOut.close()
+    bCont = True
+  else:
+    print("Vault is initialized and contains {} entries".format(len(lstVault)-1))
+    if "VaultInit.txt" in lstVault:
+      strPWD = maskpass.askpass(
+          prompt="Please provide vault password: ", mask="*")
+      strFileIn = strVault + "VaultInit.txt"
+      tmpResponse = OpenFile(strFileIn, "r")
+      if isinstance(tmpResponse, str):
+        print(tmpResponse)
+      else:
+        objFileIn = tmpResponse
+        strValue = objFileIn.read()
+        try:
+          if decrypt(strPWD, strValue) == strCheckValue:
+            print("Password is good")
+            bCont = True
+          else:
+            print("unable to decrypt vault")
+        except ValueError:
+          print("Failed to decrypt the vault")
+  while bCont:
+    DisplayHelp()
+    strCmd = input("Please enter a command: ")
+    ProcessCMD(strCmd)
+
+
 
 
 if __name__ == '__main__':
