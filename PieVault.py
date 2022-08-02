@@ -85,8 +85,7 @@ def decrypt(strkey, strData, decode=True):
   bClear = bClear[:-iPadLen]  # remove the padding
   return bClear.decode("UTF-8")
 
-
-def OpenFile(strFileName, strperm):
+def GetFileHandle(strFileName, strperm):
   try:
     objFileOut = open(strFileName, strperm, encoding='utf8')
     return objFileOut
@@ -111,7 +110,7 @@ def DefineMenu():
 
 def AddItem(strKey,strValue):
   strFileOut = strVault + strKey
-  tmpResponse = OpenFile(strFileOut, "w")
+  tmpResponse = GetFileHandle(strFileOut, "w")
   if isinstance(tmpResponse, str):
     print(tmpResponse)
   else:
@@ -122,7 +121,7 @@ def AddItem(strKey,strValue):
 
 def FetchItem(strKey):
   strFileIn = strVault + strKey
-  tmpResponse = OpenFile(strFileIn, "r")
+  tmpResponse = GetFileHandle(strFileIn, "r")
   if isinstance(tmpResponse, str):
     print(tmpResponse)
   else:
