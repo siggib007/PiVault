@@ -109,6 +109,37 @@ def DefineMenu():
   dictMenu["list"] = "List out all keys"
   dictMenu["fetch"] = "fetch a specified key"
 
+def AddItem(strKey,strValue):
+  strFileOut = strVault + strKey
+  tmpResponse = OpenFile(strFileOut, "w")
+  if isinstance(tmpResponse, str):
+    print(tmpResponse)
+  else:
+    objFileOut = tmpResponse
+  objFileOut.write(encrypt(strPWD, strValue))
+  objFileOut.close()
+
+
+def FetchItem(strKey):
+  strFileIn = strVault + strKey
+  tmpResponse = OpenFile(strFileIn, "r")
+  if isinstance(tmpResponse, str):
+    print(tmpResponse)
+  else:
+    objFileIn = tmpResponse
+    strValue = objFileIn.read()
+    objFileIn.close()
+    try:
+      return decrypt(strPWD, strValue)
+    except ValueError:
+      print("Failed to decrypt the vault")
+      return "Failed to decrypt"
+
+def ListItems():
+  print("\nHere are all the keys in the vault:")
+  for strItem in lstVault:
+    if strItem != "VaultInit":
+      print("{}".format(strItem))
 
 def DisplayHelp():
   print("\nHere are the commands you can use:")
@@ -137,13 +168,26 @@ def ProcessCMD(strCmd):
     return
   if strCmd == "help":
     DisplayHelp()
+  elif strCmd == "add":
+    strKeyName = input("Please specify keyname: ")
+    strKeyValue = input("Please specify the value for that key: ")
+    AddItem(strKeyName,strKeyValue)
+  elif strCmd == "list":
+    ListItems()
+  elif strCmd == "fetch":
+    ListItems()
+    strKey = input("Please provide name of key you wish to fetch: ")
+    strValue = FetchItem(strKey)
+    print("The value of that key is: {}".format(strValue))
   else:
     print("Not implemented")
 
 def main():
-
   global bCont
   global lstVault
+  global strVault
+  global strPWD
+
   DefineMenu()
   lstSysArg = sys.argv
 
@@ -190,36 +234,28 @@ def main():
   lstVault = os.listdir(strVault)
   if len(lstVault) == 0:
     strPWD = maskpass.askpass(prompt="Please provide vault password: ",mask="*")
-    strFileOut = strVault + "VaultInit.txt"
-    tmpResponse = OpenFile(strFileOut, "w")
-    if isinstance(tmpResponse, str):
-      print(tmpResponse)
-    else:
-      objFileOut = tmpResponse
-    objFileOut.write(encrypt(strPWD, strCheckValue))
+    AddItem("VaultInit", strCheckValue)
     print("Vault Initialized")
-    objFileOut.close()
     bCont = True
   else:
     print("Vault is initialized and contains {} entries".format(len(lstVault)-1))
-    if "VaultInit.txt" in lstVault:
+    if "VaultInit" in lstVault:
       strPWD = maskpass.askpass(
           prompt="Please provide vault password: ", mask="*")
-      strFileIn = strVault + "VaultInit.txt"
-      tmpResponse = OpenFile(strFileIn, "r")
-      if isinstance(tmpResponse, str):
-        print(tmpResponse)
+      strInitstr = FetchItem("VaultInit")
+      if strInitstr == strCheckValue:
+        print("Password is good")
+        bCont = True
       else:
-        objFileIn = tmpResponse
-        strValue = objFileIn.read()
-        try:
-          if decrypt(strPWD, strValue) == strCheckValue:
-            print("Password is good")
-            bCont = True
-          else:
-            print("unable to decrypt vault")
-        except ValueError:
-          print("Failed to decrypt the vault")
+        print("unable to decrypt vault")
+        bCont = False
+    else:
+      strPWD = maskpass.askpass(
+          prompt="Please provide vault password: ", mask="*")
+      AddItem("VaultInit", strCheckValue)
+      print("Vault Initialized")
+      bCont = True
+
   while bCont:
     DisplayHelp()
     strCmd = input("Please enter a command: ")
