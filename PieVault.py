@@ -257,6 +257,7 @@ def main():
       bCont = True
 
   while bCont:
+    lstVault = os.listdir(strVault)
     DisplayHelp()
     strCmd = input("Please enter a command: ")
     ProcessCMD(strCmd)
