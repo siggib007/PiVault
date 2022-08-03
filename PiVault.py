@@ -136,6 +136,7 @@ def UserLogin():
         return False
     AddItem(strCheckFile, strCheckValue)
     print("Vault Initialized")
+    return True
   elif bStatus:
     print("Password is good")
     return True
@@ -145,14 +146,17 @@ def UserLogin():
 
 def AddItem(strKey,strValue):
   strFileOut = strVault + strKey
+
   tmpResponse = GetFileHandle(strFileOut, "w")
   if isinstance(tmpResponse, str):
     print(tmpResponse)
+    return False
   else:
     objFileOut = tmpResponse
-  objFileOut.write(encrypt(strPWD, strValue))
-  objFileOut.close()
-  os.chmod(strFileOut, S_IREAD)
+    objFileOut.write(encrypt(strPWD, strValue))
+    objFileOut.close()
+    os.chmod(strFileOut, S_IREAD)
+    return True
 
 
 def FetchItem(strKey):
@@ -238,8 +242,10 @@ def ProcessCMD(objCmd):
       else:
         strKeyName = input("Please specify keyname: ")
         strKeyValue = input("Please specify the value for that key: ")
-      AddItem(strKeyName,strKeyValue)
-      print("key {} successfully created".format(strKeyName))
+      if AddItem(strKeyName,strKeyValue):
+        print("key {} successfully created".format(strKeyName))
+      else:
+        print("Failed to create key {}".format(strKeyName))
   elif strCmd == "list":
     ListItems()
   elif strCmd == "login":
@@ -267,6 +273,7 @@ def main():
   global strPWD
 
   strPWD = ""
+  strVault = ""
   DefineMenu()
   lstSysArg = sys.argv
 
@@ -297,20 +304,19 @@ def main():
       strVault = lstSysArg[1][6:]
       print("Using vault from argument: {}".format(strVault))
       del lstSysArg[1]
-    else:
-      strVault = ""
-  else:
-    strVault = ""
+    
   
   if strVault == "":
     strVault = strBaseDir + strDefVault + "/"
+    print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
 
-  print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
+  strVault = strVault.replace("\\", "/")
+  if strVault[-1:] != "/":
+    strVault += "/"
+
   if not os.path.exists(strVault):
     os.makedirs(strVault)
-    print(
-        "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
-
+    print("\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
   
   lstVault = os.listdir(strVault)
   if len(lstVault) > 0:
