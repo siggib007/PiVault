@@ -19,6 +19,7 @@ import time
 import sys
 import subprocess
 import base64
+
 try:
   from Crypto.Cipher import AES
   from Crypto.Hash import SHA256
@@ -40,6 +41,12 @@ finally:
 
 # End imports
 
+# Global constants
+strDefVault = "VaultData"
+strCheckValue = "This is a simple password vault"
+strCheckFile = "VaultInit"
+
+#functions 
 
 def encrypt(strkey, strData, encode=True):
   """
@@ -60,7 +67,6 @@ def encrypt(strkey, strData, encode=True):
   bData += bytes([iPadLen]) * iPadLen  # store the IV at the beginning and encrypt
   oEncrypted = IV + objEncryptor.encrypt(bData)
   return base64.b64encode(oEncrypted).decode("UTF-8") if encode else oEncrypted
-
 
 def decrypt(strkey, strData, decode=True):
   """
@@ -86,6 +92,14 @@ def decrypt(strkey, strData, decode=True):
   return bClear.decode("UTF-8")
 
 def GetFileHandle(strFileName, strperm):
+  """
+  This wraps error handling around standard file open function 
+  Parameters:
+    strFileName: Simple string with filename to be opened
+    strperm: single character string, usually w or r to indicate read vs write. other options such as "a" are valid too.
+  Returns:
+    File Handle object
+  """
   try:
     objFileOut = open(strFileName, strperm, encoding='utf8')
     return objFileOut
@@ -102,11 +116,29 @@ def DefineMenu():
   global dictMenu
 
   dictMenu = {}
-  dictMenu["help"] = "Displays this message. Can also use /h -h and --help"
-  dictMenu["quit"] = "exit out of the script"
-  dictMenu["add"] = "Adds a new key value pair"
-  dictMenu["list"] = "List out all keys"
+  dictMenu["help"]  = "Displays this message. Can also use /h -h and --help"
+  dictMenu["quit"]  = "exit out of the script"
+  dictMenu["login"] = "opens the vault in memory"
+  dictMenu["add"]   = "Adds a new key value pair"
+  dictMenu["list"]  = "List out all keys"
   dictMenu["fetch"] = "fetch a specified key"
+
+def UserLogin():
+  global strPWD
+
+  strPWD = maskpass.askpass(prompt="Please provide vault password: ", mask="*")
+  bStatus = CheckVault()
+  if bStatus is None:
+    if len(lstVault) > 0:
+      if FetchItem(lstVault[0]) == "Failed to decrypt":
+        print("unable to decrypt vault, please try to login again")
+        return
+    AddItem(strCheckFile, strCheckValue)
+    print("Vault Initialized")
+  elif bStatus:
+    print("Password is good")
+  else:
+    print("unable to decrypt vault, please try to login again")
 
 def AddItem(strKey,strValue):
   strFileOut = strVault + strKey
@@ -117,7 +149,6 @@ def AddItem(strKey,strValue):
     objFileOut = tmpResponse
   objFileOut.write(encrypt(strPWD, strValue))
   objFileOut.close()
-
 
 def FetchItem(strKey):
   strFileIn = strVault + strKey
@@ -137,8 +168,18 @@ def FetchItem(strKey):
 def ListItems():
   print("\nHere are all the keys in the vault:")
   for strItem in lstVault:
-    if strItem != "VaultInit":
+    if strItem != strCheckFile:
       print("{}".format(strItem))
+
+def CheckVault():
+  if strCheckFile in lstVault:
+    strInitstr = FetchItem(strCheckFile)
+    if strInitstr == strCheckValue:
+      return True
+    else:
+      return False
+  else:
+    return None
 
 def DisplayHelp():
   print("\nHere are the commands you can use:")
@@ -168,12 +209,18 @@ def ProcessCMD(strCmd):
   if strCmd == "help":
     DisplayHelp()
   elif strCmd == "add":
+    if strPWD == "":
+      UserLogin()
     strKeyName = input("Please specify keyname: ")
     strKeyValue = input("Please specify the value for that key: ")
     AddItem(strKeyName,strKeyValue)
   elif strCmd == "list":
     ListItems()
+  elif strCmd == "login":
+    UserLogin()
   elif strCmd == "fetch":
+    if strPWD == "":
+      UserLogin()
     ListItems()
     strKey = input("Please provide name of key you wish to fetch: ")
     strValue = FetchItem(strKey)
@@ -187,6 +234,7 @@ def main():
   global strVault
   global strPWD
 
+  strPWD = ""
   DefineMenu()
   lstSysArg = sys.argv
 
@@ -215,12 +263,14 @@ def main():
     if lstSysArg[1][:5].lower() == "vault":
       strVault = lstSysArg[1][6:]
       print("Using vault from argument: {}".format(strVault))
+      del lstSysArg[1]
     else:
       strVault = ""
   else:
     strVault = ""
+  
   if strVault == "":
-    strVault = strBaseDir + "PieVaultData/"
+    strVault = strBaseDir + strDefVault + "/"
 
   print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
   if not os.path.exists(strVault):
@@ -228,33 +278,15 @@ def main():
     print(
         "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
 
-  strCheckValue = "This is a simple password vault"
-  bCont = False
+  
   lstVault = os.listdir(strVault)
-  if len(lstVault) == 0:
-    strPWD = maskpass.askpass(prompt="Please provide vault password: ",mask="*")
-    AddItem("VaultInit", strCheckValue)
-    print("Vault Initialized")
-    bCont = True
-  else:
+  if len(lstVault) > 0:
     print("Vault is initialized and contains {} entries".format(len(lstVault)-1))
-    if "VaultInit" in lstVault:
-      strPWD = maskpass.askpass(
-          prompt="Please provide vault password: ", mask="*")
-      strInitstr = FetchItem("VaultInit")
-      if strInitstr == strCheckValue:
-        print("Password is good")
-        bCont = True
-      else:
-        print("unable to decrypt vault")
-        bCont = False
-    else:
-      strPWD = maskpass.askpass(
-          prompt="Please provide vault password: ", mask="*")
-      AddItem("VaultInit", strCheckValue)
-      print("Vault Initialized")
-      bCont = True
+  else:
+    print("Vault is uninilized, need to login to initialize")
 
+  
+  bCont = True
   while bCont:
     lstVault = os.listdir(strVault)
     DisplayHelp()
