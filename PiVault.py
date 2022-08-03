@@ -1,5 +1,5 @@
 '''
-Very simply password vault. 
+Very simply secrets vault. 
  - Takes in a string, encrypts it and stores the encryption.
  - Then retrieves the encrypted string and decrypts it for use
 
@@ -19,6 +19,7 @@ import time
 import sys
 import subprocess
 import base64
+from stat import S_IREAD
 
 try:
   from Crypto.Cipher import AES
@@ -132,13 +133,15 @@ def UserLogin():
     if len(lstVault) > 0:
       if FetchItem(lstVault[0]) == "Failed to decrypt":
         print("unable to decrypt vault, please try to login again")
-        return
+        return False
     AddItem(strCheckFile, strCheckValue)
     print("Vault Initialized")
   elif bStatus:
     print("Password is good")
+    return True
   else:
-    print("unable to decrypt vault, please try to login again")
+    print("unable to decrypt vault, please try again")
+    return False
 
 def AddItem(strKey,strValue):
   strFileOut = strVault + strKey
@@ -149,6 +152,8 @@ def AddItem(strKey,strValue):
     objFileOut = tmpResponse
   objFileOut.write(encrypt(strPWD, strValue))
   objFileOut.close()
+  os.chmod(strFileOut, S_IREAD)
+
 
 def FetchItem(strKey):
   strFileIn = strVault + strKey
@@ -189,8 +194,22 @@ def DisplayHelp():
     elif strItem != "list" and strItem != "fetch":
       print("{} : {}".format(strItem, dictMenu[strItem]))
 
-def ProcessCMD(strCmd):
+def ProcessCMD(objCmd):
   global bCont
+
+  if isinstance(objCmd,str):
+    strCmd = objCmd
+  elif isinstance(objCmd,list):
+    lstCmd = objCmd
+    if len(lstCmd) > 0:
+      strCmd = lstCmd[0]
+    else:
+      print("Got an empty list, don't know what to do with that")
+      return
+  else:
+    print("Can't deal with command of type {}".format(type(objCmd)))
+    return
+
   strCmd = strCmd.replace("-", "")
   strCmd = strCmd.replace("/", "")
   strCmd = strCmd.replace("\\", "")
@@ -209,22 +228,35 @@ def ProcessCMD(strCmd):
   if strCmd == "help":
     DisplayHelp()
   elif strCmd == "add":
+    bLogin = True
     if strPWD == "":
-      UserLogin()
-    strKeyName = input("Please specify keyname: ")
-    strKeyValue = input("Please specify the value for that key: ")
-    AddItem(strKeyName,strKeyValue)
+      bLogin = UserLogin()
+    if bLogin:
+      if len(lstCmd) > 2:
+        strKeyName = lstCmd[1]
+        strKeyValue = lstCmd[2]
+      else:
+        strKeyName = input("Please specify keyname: ")
+        strKeyValue = input("Please specify the value for that key: ")
+      AddItem(strKeyName,strKeyValue)
+      print("key {} successfully created".format(strKeyName))
   elif strCmd == "list":
     ListItems()
   elif strCmd == "login":
     UserLogin()
+    bCont = True
   elif strCmd == "fetch":
+    bLogin = True
     if strPWD == "":
-      UserLogin()
-    ListItems()
-    strKey = input("Please provide name of key you wish to fetch: ")
-    strValue = FetchItem(strKey)
-    print("The value of that key is: {}".format(strValue))
+      bLogin = UserLogin()
+    if bLogin:
+      if len(lstCmd) > 1:
+        strKey = lstCmd[1]
+      else:
+        ListItems()
+        strKey = input("Please provide name of key you wish to fetch: ")
+      strValue = FetchItem(strKey)
+      print("The value of '{}' is: {}".format(strKey,strValue))
   else:
     print("Not implemented")
 
@@ -249,7 +281,8 @@ def main():
   strVersion = "{0}.{1}.{2}".format(
       sys.version_info[0], sys.version_info[1], sys.version_info[2])
 
-  print("This is a simple password vault script. Enter in a key value pair and the value will be encrypted with AES and stored under the key."
+  print("This is a simple secrets vault script. Enter in a key value pair "
+        "and the value will be encrypted with AES and stored under the key."
         "This is running under Python Version {}".format(strVersion))
   print("Running from: {}".format(strRealPath))
   dtNow = time.asctime()
@@ -285,8 +318,13 @@ def main():
   else:
     print("Vault is uninilized, need to login to initialize")
 
+  if len(lstSysArg) > 1:
+    bCont = False
+    del lstSysArg[0]
+    ProcessCMD(lstSysArg)
+  else:
+    bCont = True
   
-  bCont = True
   while bCont:
     lstVault = os.listdir(strVault)
     DisplayHelp()
