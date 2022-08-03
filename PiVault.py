@@ -201,6 +201,8 @@ def DisplayHelp():
 def ProcessCMD(objCmd):
   global bCont
 
+  strCmd = ""
+  lstCmd = []
   if isinstance(objCmd,str):
     strCmd = objCmd
   elif isinstance(objCmd,list):
@@ -296,8 +298,13 @@ def main():
   print("The time now is {}".format(dtNow))
   if os.getenv("VAULT") != "" and os.getenv("VAULT") is not None:
     strVault = os.getenv("VAULT")
+    print("Using {} form env for vault path".format(strVault))
   else:
     print("no vault environment valuable")
+
+  if os.getenv("PWD") != "" and os.getenv("PWD") is not None:
+    strPWD = os.getenv("PWD")
+
 
   if len(lstSysArg) > 1:
     if lstSysArg[1][:5].lower() == "vault":
