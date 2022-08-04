@@ -200,8 +200,12 @@ def FetchItem(strKey):
 def Fetch2Clip(strKey):
   strValue = FetchItem(strKey)
   if strValue != False:
-    pyperclip.copy(strValue)
-    print("Value for {} put on the clipboard".format(strKey))
+    try:
+      pyperclip.copy(strValue)
+      print("Value for {} put on the clipboard".format(strKey))
+    except pyperclip.PyperclipException:
+      print("Failed to find the clipboard, so outputting it here")
+      print("\nThe value of '{}' is: {}\n".format(strKey, strValue))
 
 def ListItems():
   print("\nHere are all the keys in the vault:")
@@ -223,8 +227,9 @@ def DisplayHelp():
   print("\nHere are the commands you can use:")
   for strItem in dictMenu:
     if len(lstVault) > 1:
-      print("{} : {}".format(strItem, dictMenu[strItem]))
-    elif strItem != "list" and strItem != "fetch":
+      if strItem != "clippy" or bClippy:
+        print("{} : {}".format(strItem, dictMenu[strItem]))
+    elif strItem != "list" and strItem != "fetch" and strItem != "clippy":
       print("{} : {}".format(strItem, dictMenu[strItem]))
 
 def ChangePWD():
@@ -306,8 +311,11 @@ def ProcessCMD(objCmd):
         strKey = input("Please provide name of key you wish to fetch: ")
       strValue = FetchItem(strKey)
       if strValue != False:
-        print("\nThe value of '{}' is: {}".format(strKey,strValue))
+        print("\nThe value of '{}' is: {}\n".format(strKey,strValue))
   elif strCmd == "clippy":
+    if not bClippy:
+      print("Clippy is not supported on your system")
+      return
     bLogin = True
     if strPWD == "":
       bLogin = UserLogin()
@@ -338,6 +346,16 @@ def main():
   global bCont
   global strVault
   global strPWD
+  global bClippy
+
+  try:
+    pyperclip.paste()
+    print("Clipboard seems good so turning that on")
+    bClippy = True
+  except pyperclip.PyperclipException:
+    print("Failed to find the clipboard, so turning clippy off")
+    bClippy = False
+
 
   strPWD = ""
   strVault = ""
