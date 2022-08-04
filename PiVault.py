@@ -39,6 +39,13 @@ except ImportError:
       [sys.executable, "-m", "pip", "install", 'maskpass'])
 finally:
   import maskpass
+try:
+  import pyperclip
+except ImportError:
+  subprocess.check_call(
+      [sys.executable, "-m", "pip", "install", 'pyperclip'])
+finally:
+  import pyperclip
 
 # End imports
 
@@ -101,17 +108,25 @@ def GetFileHandle(strFileName, strperm):
   Returns:
     File Handle object
   """
+  dictModes = {}
+  dictModes["w"] = "writing"
+  dictModes["r"] = "reading"
+  dictModes["a"] = "appending"
+  dictModes["x"] = "opening"
+
+  cMode = strperm[0].lower()
+
   try:
     objFileOut = open(strFileName, strperm, encoding='utf8')
     return objFileOut
   except PermissionError:
-    print("unable to open output file {} for writing, "
-              "permission denied.".format(strFileName))
+    print("unable to open output file {} for {}, "
+              "permission denied.".format(strFileName, dictModes[cMode]))
     return("Permission denied")
   except FileNotFoundError:
-    print("unable to open output file {} for writing, "
-              "Issue with the path".format(strFileName))
-    return("file not found")
+    print("unable to open output file {} for {}, "
+              "Issue with the path".format(strFileName, dictModes[cMode]))
+    return("key not found")
 
 def DefineMenu():
   global dictMenu
@@ -123,6 +138,8 @@ def DefineMenu():
   dictMenu["add"]   = "Adds a new key value pair"
   dictMenu["list"]  = "List out all keys"
   dictMenu["fetch"] = "fetch a specified key"
+  dictMenu["clippy"] = "put specified key value on the clipboard"
+  dictMenu["passwd"] = "Change the password"
 
 def UserLogin():
   global strPWD
@@ -144,8 +161,15 @@ def UserLogin():
     print("unable to decrypt vault, please try again")
     return False
 
-def AddItem(strKey,strValue):
+def AddItem(strKey,strValue,bConf=True,strPass=""):
+  if strPass == "":
+    strPass = strPWD
   strFileOut = strVault + strKey
+  if os.path.exists(strFileOut) and bConf:
+    print("Key '{}' already exists, do you wish to overwrite it?".format(strKey))
+    strResp = input("Please type yes to confirm, all other input is a no: ")
+    if strResp.lower() != "yes":
+      return False
 
   tmpResponse = GetFileHandle(strFileOut, "w")
   if isinstance(tmpResponse, str):
@@ -153,17 +177,16 @@ def AddItem(strKey,strValue):
     return False
   else:
     objFileOut = tmpResponse
-    objFileOut.write(encrypt(strPWD, strValue))
+    objFileOut.write(encrypt(strPass, strValue))
     objFileOut.close()
-    os.chmod(strFileOut, S_IREAD)
     return True
-
 
 def FetchItem(strKey):
   strFileIn = strVault + strKey
   tmpResponse = GetFileHandle(strFileIn, "r")
   if isinstance(tmpResponse, str):
     print(tmpResponse)
+    return False
   else:
     objFileIn = tmpResponse
     strValue = objFileIn.read()
@@ -172,7 +195,13 @@ def FetchItem(strKey):
       return decrypt(strPWD, strValue)
     except ValueError:
       print("Failed to decrypt the vault")
-      return "Failed to decrypt"
+      return False
+
+def Fetch2Clip(strKey):
+  strValue = FetchItem(strKey)
+  if strValue != False:
+    pyperclip.copy(strValue)
+    print("Value for {} put on the clipboard".format(strKey))
 
 def ListItems():
   print("\nHere are all the keys in the vault:")
@@ -198,22 +227,31 @@ def DisplayHelp():
     elif strItem != "list" and strItem != "fetch":
       print("{} : {}".format(strItem, dictMenu[strItem]))
 
+def ChangePWD():
+  strNewPWD = maskpass.askpass(prompt="Please provide New password: ", mask="*")
+  for strKey in lstVault:
+    strValue = FetchItem(strKey)
+    if AddItem(strKey, strValue,False,strNewPWD):
+      print("key {} successfully changed".format(strKey))
+    else:
+      print("Failed to change key {}".format(strKey))
+
 def ProcessCMD(objCmd):
   global bCont
 
   strCmd = ""
   lstCmd = []
   if isinstance(objCmd,str):
-    strCmd = objCmd
+    lstCmd = objCmd.split()
   elif isinstance(objCmd,list):
     lstCmd = objCmd
-    if len(lstCmd) > 0:
-      strCmd = lstCmd[0]
-    else:
-      print("Got an empty list, don't know what to do with that")
-      return
   else:
     print("Can't deal with command of type {}".format(type(objCmd)))
+    return
+  if len(lstCmd) > 0:
+    strCmd = lstCmd[0]
+  else:
+    print("Got an empty list, don't know what to do with that")
     return
 
   strCmd = strCmd.replace("-", "")
@@ -240,16 +278,19 @@ def ProcessCMD(objCmd):
     if bLogin:
       if len(lstCmd) > 2:
         strKeyName = lstCmd[1]
-        strKeyValue = lstCmd[2]
+        strKeyValue = " ".join(lstCmd[2:])
       else:
         strKeyName = input("Please specify keyname: ")
         strKeyValue = input("Please specify the value for that key: ")
       if AddItem(strKeyName,strKeyValue):
         print("key {} successfully created".format(strKeyName))
+        ListCount()
       else:
         print("Failed to create key {}".format(strKeyName))
   elif strCmd == "list":
     ListItems()
+  elif strCmd == "passwd":
+    ChangePWD()
   elif strCmd == "login":
     UserLogin()
     bCont = True
@@ -264,13 +305,37 @@ def ProcessCMD(objCmd):
         ListItems()
         strKey = input("Please provide name of key you wish to fetch: ")
       strValue = FetchItem(strKey)
-      print("The value of '{}' is: {}".format(strKey,strValue))
+      if strValue != False:
+        print("\nThe value of '{}' is: {}".format(strKey,strValue))
+  elif strCmd == "clippy":
+    bLogin = True
+    if strPWD == "":
+      bLogin = UserLogin()
+    if bLogin:
+      if len(lstCmd) > 1:
+        strKey = lstCmd[1]
+      else:
+        ListItems()
+        strKey = input("Please provide name of key you wish to fetch: ")
+      Fetch2Clip(strKey)
   else:
     print("Not implemented")
 
+def ListCount():
+  global lstVault
+  
+  lstVault = os.listdir(strVault)
+  if strCheckFile in lstVault:
+    iVaultLen = len(lstVault) - 1
+  else:
+    iVaultLen = len(lstVault)
+  if iVaultLen > 0:
+    print("Vault is initialized and contains {} entries".format(iVaultLen))
+  else:
+    print("Vault is uninilized, need to login to initialize")
+
 def main():
   global bCont
-  global lstVault
   global strVault
   global strPWD
 
@@ -325,13 +390,9 @@ def main():
     os.makedirs(strVault)
     print("\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
   
-  lstVault = os.listdir(strVault)
-  if len(lstVault) > 0:
-    print("Vault is initialized and contains {} entries".format(len(lstVault)-1))
-  else:
-    print("Vault is uninilized, need to login to initialize")
 
   if len(lstSysArg) > 1:
+    ListCount()
     bCont = False
     del lstSysArg[0]
     ProcessCMD(lstSysArg)
@@ -339,7 +400,7 @@ def main():
     bCont = True
   
   while bCont:
-    lstVault = os.listdir(strVault)
+    ListCount()
     DisplayHelp()
     strCmd = input("Please enter a command: ")
     ProcessCMD(strCmd)
