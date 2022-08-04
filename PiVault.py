@@ -348,15 +348,6 @@ def main():
   global strPWD
   global bClippy
 
-  try:
-    pyperclip.paste()
-    print("Clipboard seems good so turning that on")
-    bClippy = True
-  except pyperclip.PyperclipException:
-    print("Failed to find the clipboard, so turning clippy off")
-    bClippy = False
-
-
   strPWD = ""
   strVault = ""
   DefineMenu()
@@ -379,6 +370,15 @@ def main():
   print("Running from: {}".format(strRealPath))
   dtNow = time.asctime()
   print("The time now is {}".format(dtNow))
+
+  try:
+    pyperclip.paste()
+    print("Clipboard seems good so turning that on")
+    bClippy = True
+  except pyperclip.PyperclipException:
+    print("Failed to find the clipboard, so turning clippy off")
+    bClippy = False
+
   if os.getenv("VAULT") != "" and os.getenv("VAULT") is not None:
     strVault = os.getenv("VAULT")
     print("Using {} form env for vault path".format(strVault))
