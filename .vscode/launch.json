@@ -15,7 +15,8 @@
       "env": 
       {
         "TEST_VAR": "foo",
-        "VAULT": "/temp/Vaultb"
+        "VAULT": "/temp/Vaultb",
+        "HIDEINPUT": "true"
       }
     }
   ]

@@ -21,6 +21,7 @@ import sys
 import subprocess
 import base64
 from stat import S_IREAD
+from xml.dom.expatbuilder import InternalSubsetExtractor
 
 try:
   from Crypto.Cipher import AES
@@ -51,6 +52,8 @@ finally:
 # End imports
 
 # Global constants
+bDefHide = False
+strDefValueColor = "red"
 strDefVault = "VaultData"
 strCheckValue = "This is a simple secrets vault"
 strCheckFile = "VaultInit"
@@ -143,12 +146,30 @@ def DefineMenu():
   dictMenu = {}
   dictMenu["help"]  = "Displays this message. Can also use /h -h and --help"
   dictMenu["quit"]  = "exit out of the script"
-  dictMenu["login"] = "opens the vault in memory"
   dictMenu["add"]   = "Adds a new key value pair"
   dictMenu["list"]  = "List out all keys"
   dictMenu["fetch"] = "fetch a specified key"
   dictMenu["clippy"] = "put specified key value on the clipboard"
   dictMenu["passwd"] = "Change the password"
+
+def DefineColors():
+  global dictColor
+  dictColor = {}
+  dictColor["black"] = "30"
+  dictColor["red"] = "31"
+  dictColor["green"] = "32"
+  dictColor["orange"] = "33"
+  dictColor["blue"] = "34"
+  dictColor["purple"] = "35"
+  dictColor["cyan"] = "36"
+  dictColor["lightgrey"] = "37"
+  dictColor["darkgrey"] = "90"
+  dictColor["lightred"] = "91"
+  dictColor["lightgreen"] = "92"
+  dictColor["yellow"] = "93"
+  dictColor["lightblue"] = "94"
+  dictColor["pink"] = "95"
+  dictColor["lightcyan"] = "96"
 
 def UserLogin():
   global strPWD
@@ -294,12 +315,18 @@ def ProcessCMD(objCmd):
     if not bLoggedIn:
       bLogin = UserLogin()
     if bLogin:
-      if len(lstCmd) > 2:
+      if len(lstCmd) > 1:
         strKeyName = lstCmd[1]
-        strKeyValue = " ".join(lstCmd[2:])
       else:
         strKeyName = input("Please specify keyname: ")
-        strKeyValue = input("Please specify the value for that key: ")
+      if len(lstCmd) > 2:
+        strKeyValue = " ".join(lstCmd[2:])
+      else:
+        if bHideValueIn:
+          strKeyValue = maskpass.askpass(
+              prompt="Please specify the value for key {}: ".format(strKeyName), mask="*")
+        else:
+          strKeyValue = input("Please specify the value for key {}: ".format(strKeyName))
       if AddItem(strKeyName,strKeyValue):
         print("key {} successfully created".format(strKeyName))
         ListCount()
@@ -309,9 +336,6 @@ def ProcessCMD(objCmd):
     ListItems()
   elif strCmd == "passwd":
     ChangePWD()
-  elif strCmd == "login":
-    UserLogin()
-    bCont = True
   elif strCmd == "fetch":
     bLogin = True
     if not bLoggedIn:
@@ -324,7 +348,8 @@ def ProcessCMD(objCmd):
         strKey = input("Please provide name of key you wish to fetch: ")
       strValue = FetchItem(strKey)
       if strValue != False:
-        print("\nThe value of '{}' is: {}\n".format(strKey,strValue))
+        print("\nThe value of '{}' is:{} {}{}\n".format(
+            strKey, strFormat, strValue, strFormatReset))
   elif strCmd == "clippy":
     if not bClippy:
       print("Clippy is not supported on your system")
@@ -366,8 +391,14 @@ def main():
   global strVault
   global strPWD
   global bClippy
+  global bHideValueIn
+  global strFormat
+  global strFormatReset
+  
 
   DefineMenu()
+  DefineColors()
+  
   lstSysArg = sys.argv
 
   strBaseDir = os.path.dirname(sys.argv[0])
@@ -398,11 +429,25 @@ def main():
 
   strVault = FetchEnv("VAULT")
   strPWD = FetchEnv("PWD")
+  strHideIn = FetchEnv("HIDEINPUT")
+  strValueColor = FetchEnv("VALUECOLOR")
   if strVault != "":
     print("Found {} in env for vault path".format(strVault))
   else:
     print("no vault environment valuable")
+  if strHideIn == "":
+    bHideValueIn = bDefHide
+  elif strHideIn.lower() == "true":
+    bHideValueIn = True
+  else:
+    bHideValueIn = False
+  if strValueColor == "":
+    iColorID = dictColor[strDefValueColor]
+  else:
+    iColorID = dictColor[strValueColor]
 
+  strFormat = "\x1b[1;{}m".format(iColorID)
+  strFormatReset = "\x1b[0;0m"
   if len(lstSysArg) > 1:
     if lstSysArg[1][:5].lower() == "vault":
       strVault = lstSysArg[1][6:]
