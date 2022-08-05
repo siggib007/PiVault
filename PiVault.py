@@ -481,6 +481,13 @@ def FetchEnv(strVarName):
     return ""
 
 def main():
+  """
+  Initial entry point where some of the initialization takes place.
+  Parameters:
+    none
+  Returns:
+    nothing
+  """ 
   global bCont
   global strVault
   global strPWD
