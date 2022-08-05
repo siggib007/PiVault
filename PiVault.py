@@ -11,6 +11,7 @@ Encrypt/decrypt functions copied from https://stackoverflow.com/a/44212550/85494
 Following packages need to be installed
 pip install pycryptodome
 pip install maskpass
+pip install pyperclip
 
 '''
 # Import libraries
@@ -51,8 +52,9 @@ finally:
 
 # Global constants
 strDefVault = "VaultData"
-strCheckValue = "This is a simple password vault"
+strCheckValue = "This is a simple secrets vault"
 strCheckFile = "VaultInit"
+bLoggedIn = False
 
 #functions 
 
@@ -129,6 +131,13 @@ def GetFileHandle(strFileName, strperm):
     return("key not found")
 
 def DefineMenu():
+  """
+  Simple function that loads the menu into a global dictionary dictMenu
+  Parameters:
+    none
+  Returns:
+    nothing
+  """
   global dictMenu
 
   dictMenu = {}
@@ -143,8 +152,10 @@ def DefineMenu():
 
 def UserLogin():
   global strPWD
+  global bLoggedIn
 
-  strPWD = maskpass.askpass(prompt="Please provide vault password: ", mask="*")
+  if strPWD == "":
+    strPWD = maskpass.askpass(prompt="Please provide vault password: ", mask="*")
   bStatus = CheckVault()
   if bStatus is None:
     if len(lstVault) > 0:
@@ -153,9 +164,11 @@ def UserLogin():
         return False
     AddItem(strCheckFile, strCheckValue)
     print("Vault Initialized")
+    bStatus = True
     return True
   elif bStatus:
     print("Password is good")
+    bStatus = True
     return True
   else:
     print("unable to decrypt vault, please try again")
@@ -278,7 +291,7 @@ def ProcessCMD(objCmd):
     DisplayHelp()
   elif strCmd == "add":
     bLogin = True
-    if strPWD == "":
+    if not bLoggedIn:
       bLogin = UserLogin()
     if bLogin:
       if len(lstCmd) > 2:
@@ -301,7 +314,7 @@ def ProcessCMD(objCmd):
     bCont = True
   elif strCmd == "fetch":
     bLogin = True
-    if strPWD == "":
+    if not bLoggedIn:
       bLogin = UserLogin()
     if bLogin:
       if len(lstCmd) > 1:
@@ -317,7 +330,7 @@ def ProcessCMD(objCmd):
       print("Clippy is not supported on your system")
       return
     bLogin = True
-    if strPWD == "":
+    if not bLoggedIn:
       bLogin = UserLogin()
     if bLogin:
       if len(lstCmd) > 1:
@@ -342,14 +355,18 @@ def ListCount():
   else:
     print("Vault is uninilized, need to login to initialize")
 
+def FetchEnv(strVarName):
+  if os.getenv(strVarName) != "" and os.getenv(strVarName) is not None:
+    return os.getenv(strVarName)
+  else:
+    return ""
+
 def main():
   global bCont
   global strVault
   global strPWD
   global bClippy
 
-  strPWD = ""
-  strVault = ""
   DefineMenu()
   lstSysArg = sys.argv
 
@@ -365,8 +382,8 @@ def main():
       sys.version_info[0], sys.version_info[1], sys.version_info[2])
 
   print("This is a simple secrets vault script. Enter in a key value pair "
-        "and the value will be encrypted with AES and stored under the key."
-        "This is running under Python Version {}".format(strVersion))
+        "and the value will be encrypted with AES and stored under the key.")
+  print ("This is running under Python Version {}".format(strVersion))
   print("Running from: {}".format(strRealPath))
   dtNow = time.asctime()
   print("The time now is {}".format(dtNow))
@@ -379,26 +396,24 @@ def main():
     print("Failed to find the clipboard, so turning clippy off")
     bClippy = False
 
-  if os.getenv("VAULT") != "" and os.getenv("VAULT") is not None:
-    strVault = os.getenv("VAULT")
-    print("Using {} form env for vault path".format(strVault))
+  strVault = FetchEnv("VAULT")
+  strPWD = FetchEnv("PWD")
+  if strVault != "":
+    print("Found {} in env for vault path".format(strVault))
   else:
     print("no vault environment valuable")
-
-  if os.getenv("PWD") != "" and os.getenv("PWD") is not None:
-    strPWD = os.getenv("PWD")
-
 
   if len(lstSysArg) > 1:
     if lstSysArg[1][:5].lower() == "vault":
       strVault = lstSysArg[1][6:]
-      print("Using vault from argument: {}".format(strVault))
+      print("Found vault in argument: {}".format(strVault))
       del lstSysArg[1]
     
-  
   if strVault == "":
     strVault = strBaseDir + strDefVault + "/"
     print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
+  else:
+    print("Using vault path of {}".format(strVault))
 
   strVault = strVault.replace("\\", "/")
   if strVault[-1:] != "/":
