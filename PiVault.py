@@ -290,10 +290,11 @@ def ListItems():
   Returns:
     nothing
   """
-  print("\nHere are all the keys in the vault:")
-  for strItem in lstVault:
-    if strItem != strCheckFile:
-      print("{}".format(strItem))
+  if len(lstVault) > 0:
+    print("\nHere are all the keys in the vault:")
+    for strItem in lstVault:
+      if strItem != strCheckFile:
+        print("{}".format(strItem))
 
 def CheckVault():
   """
@@ -462,7 +463,7 @@ def ListCount():
   if iVaultLen > 0:
     print("Vault is initialized and contains {} entries".format(iVaultLen))
   else:
-    print("Vault is uninilized, need to login to initialize")
+    print("Vault is uninilized, need to add an item to initialize")
 
 def FetchEnv(strVarName):
   """
