@@ -35,7 +35,7 @@ Here are some examples:
 python3 PiVault.py add testkey15 This is the value 15
 ```
 
-This creates a new entry called testkey15 and encrypts the string "This is the value #15" and stores it in it. 
+This creates a new entry called testkey15 and encrypts the string "This is the value 15" and stores it in it. 
 
 ```
 python3 PiVault.py fetch testkey15
