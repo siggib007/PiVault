@@ -1,0 +1,2 @@
+import PiVault
+help(PiVault)

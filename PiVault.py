@@ -1,6 +1,6 @@
 '''
 Very simply secrets vault. 
- - Takes in a string, encrypts it and stores the encryption.
+ - Takes in a string, encrypts it and stores the encrypted string.
  - Then retrieves the encrypted string and decrypts it for use
 
 Author Siggi Bjarnason AUG 2022
@@ -20,7 +20,6 @@ import time
 import sys
 import subprocess
 import base64
-from stat import S_IREAD
 from xml.dom.expatbuilder import InternalSubsetExtractor
 
 try:
@@ -61,9 +60,10 @@ bLoggedIn = False
 
 #functions 
 
-def encrypt(strkey, strData, encode=True):
+def StringEncryptor(strkey, strData, encode=True):
   """
-  This handles encrypting a string using AES 
+  This handles encrypting a string using AES.
+  Adopted from https://stackoverflow.com/a/44212550/8549454
   Parameters:
     strkey: Simple string with encryption password
     strData: Simple string with the data to be encrypted
@@ -81,9 +81,10 @@ def encrypt(strkey, strData, encode=True):
   oEncrypted = IV + objEncryptor.encrypt(bData)
   return base64.b64encode(oEncrypted).decode("UTF-8") if encode else oEncrypted
 
-def decrypt(strkey, strData, decode=True):
+def StringDecryptor(strkey, strData, decode=True):
   """
-  This handles decrypting a string encrypted with AES 
+  This handles decrypting a string encrypted with AES
+  Adopted from https://stackoverflow.com/a/44212550/8549454
   Parameters:
     strkey: Simple string with encryption password
     strData: Simple string with the encrypted data
@@ -139,7 +140,7 @@ def DefineMenu():
   Parameters:
     none
   Returns:
-    nothing
+    Sets global variable dictMenu but returns nothing
   """
   global dictMenu
 
@@ -153,6 +154,13 @@ def DefineMenu():
   dictMenu["passwd"] = "Change the password"
 
 def DefineColors():
+  """
+  Simple function that loads the dictColor dictionary of colors
+  Parameters:
+    none
+  Returns:
+    Sets global variable dictColor but returns nothing
+  """
   global dictColor
   dictColor = {}
   dictColor["black"] = "30"
@@ -172,6 +180,13 @@ def DefineColors():
   dictColor["lightcyan"] = "96"
 
 def UserLogin():
+  """
+  Simple function that handles validating that password is valid across all items in the vault
+  Parameters:
+    none
+  Returns:
+    true/false boolean to indicate if password supplied is good or not
+  """
   global strPWD
   global bLoggedIn
 
@@ -196,6 +211,18 @@ def UserLogin():
     return False
 
 def AddItem(strKey,strValue,bConf=True,strPass=""):
+  """
+  Function that encrypts the string provided and 
+  stores the key value pair in the choosen data store
+  Parameters:
+    strKey: The name of the key part of the key value pair
+    strValue: The value part of the key value pair
+    bConf: Optional, defaults to True. If key updates should be confirmed
+    strPass: Optional, defaults to blank string. Use a password other than 
+              that validated by login function
+  Returns:
+    True/false boolean to indicate if the was successful or not
+  """
   if strPass == "":
     strPass = strPWD
   strFileOut = strVault + strKey
@@ -211,11 +238,18 @@ def AddItem(strKey,strValue,bConf=True,strPass=""):
     return False
   else:
     objFileOut = tmpResponse
-    objFileOut.write(encrypt(strPass, strValue))
+    objFileOut.write(StringEncryptor(strPass, strValue))
     objFileOut.close()
     return True
 
 def FetchItem(strKey):
+  """
+  Function that fetches the specified key from the datastore and decrypts it.
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    Either the decrypted string or boolean false to indicate a failure
+  """
   strFileIn = strVault + strKey
   tmpResponse = GetFileHandle(strFileIn, "r")
   if isinstance(tmpResponse, str):
@@ -226,12 +260,20 @@ def FetchItem(strKey):
     strValue = objFileIn.read()
     objFileIn.close()
     try:
-      return decrypt(strPWD, strValue)
+      return StringDecryptor(strPWD, strValue)
     except ValueError:
       print("Failed to decrypt the vault")
       return False
 
 def Fetch2Clip(strKey):
+  """
+  Function that fetches the specified key from the datastore and decrypts it.
+  Decrypted value is then placed on the clipboard and not shown.
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    nothing
+  """
   strValue = FetchItem(strKey)
   if strValue != False:
     try:
@@ -239,15 +281,28 @@ def Fetch2Clip(strKey):
       print("Value for {} put on the clipboard".format(strKey))
     except pyperclip.PyperclipException:
       print("Failed to find the clipboard, so outputting it here")
-      print("\nThe value of '{}' is: {}\n".format(strKey, strValue))
 
 def ListItems():
+  """
+  Function that just lists out all the keys in the store.
+  Parameters:
+    none
+  Returns:
+    nothing
+  """
   print("\nHere are all the keys in the vault:")
   for strItem in lstVault:
     if strItem != strCheckFile:
       print("{}".format(strItem))
 
 def CheckVault():
+  """
+  Function used by login function to check the vault.
+  Parameters:
+    none
+  Returns:
+    true/false indicating if the vault is good or not
+  """
   if strCheckFile in lstVault:
     strInitstr = FetchItem(strCheckFile)
     if strInitstr == strCheckValue:
@@ -258,6 +313,13 @@ def CheckVault():
     return None
 
 def DisplayHelp():
+  """
+  Function that displays a help message.
+  Parameters:
+    none
+  Returns:
+    none
+  """
   print("\nHere are the commands you can use:")
   for strItem in dictMenu:
     if len(lstVault) > 1:
@@ -267,6 +329,13 @@ def DisplayHelp():
       print("{} : {}".format(strItem, dictMenu[strItem]))
 
 def ChangePWD():
+  """
+  Function that loops through all items in the store, decrypts it then re-encrypts with new password.
+  Parameters:
+    none
+  Returns:
+    nothing
+  """
   strNewPWD = maskpass.askpass(prompt="Please provide New password: ", mask="*")
   for strKey in lstVault:
     strValue = FetchItem(strKey)
@@ -276,6 +345,13 @@ def ChangePWD():
       print("Failed to change key {}".format(strKey))
 
 def ProcessCMD(objCmd):
+  """
+  Function that process all the user commands, whether in the shell or from command arguments.
+  Parameters:
+    objCmd: The command string, either simple string or an array of strings
+  Returns:
+    nothing
+  """
   global bCont
 
   strCmd = ""
@@ -368,6 +444,14 @@ def ProcessCMD(objCmd):
     print("Not implemented")
 
 def ListCount():
+  """
+  Function that displays information about status of the vault and number of members.
+  Parameters:
+    none
+  Returns:
+    nothing
+  """
+
   global lstVault
   
   lstVault = os.listdir(strVault)
@@ -381,6 +465,15 @@ def ListCount():
     print("Vault is uninilized, need to login to initialize")
 
 def FetchEnv(strVarName):
+  """
+  Function that fetches the specified content of specified environment variable, 
+  converting nonetype to empty string.
+  Parameters:
+    strVarName: The name of the environment variable to be fetched
+  Returns:
+    The content of the environment or empty string
+  """
+
   if os.getenv(strVarName) != "" and os.getenv(strVarName) is not None:
     return os.getenv(strVarName)
   else:
@@ -395,10 +488,9 @@ def main():
   global strFormat
   global strFormatReset
   
-
   DefineMenu()
   DefineColors()
-  
+
   lstSysArg = sys.argv
 
   strBaseDir = os.path.dirname(sys.argv[0])
