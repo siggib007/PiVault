@@ -35,7 +35,7 @@ Here are some examples:
 python3 PiVault.py add testkey15 This is the value 15
 ```
 
-This creates a new entry called testkey15 and encrypts the string "This is the value 15" and stores it in it. 
+This creates a new entry called testkey15 and encrypts the string "This is the value 15" and stores it in it. The script will combine all words after the first two (add command and the key name) into a value string. Note however that some operating system treat # as a comment and don't process anything beyond that. So if your value contains a #, it would be safe to quote your value string or escape the # otherwise your value might get truncated after the #.
 
 ```
 python3 PiVault.py fetch testkey15
