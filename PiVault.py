@@ -16,6 +16,7 @@ pip install pyperclip
 '''
 # Import libraries
 import os
+import shutil
 import time
 import sys
 import subprocess
@@ -142,6 +143,7 @@ def DefineMenu():
   dictMenu["quit"]   = "exit out of the script"
   dictMenu["add"]    = "Adds a new key value pair"
   dictMenu["del"]    = "removes the specified key"
+  dictMenu["reset"]  = "Resets your stores so it is completely uninitialized"
   dictMenu["list"]   = "List out all keys"
   dictMenu["fetch"]  = "fetch a specified key"
   dictMenu["clippy"] = "put specified key value on the clipboard"
@@ -287,8 +289,16 @@ def DelItem(strKey):
     Nothing
   """
   if strStore.lower() == "files":
-    strFileName = strVault + strKey
-    os.remove(strFileName)
+    if strKey != "":
+      strFileName = strVault + strKey
+      try:
+        os.remove(strFileName)
+      except PermissionError:
+        print("unable to delete file {}, "
+        "permission denied.".format(strFileName))
+      except FileNotFoundError:
+        print("unable to delete file {}, "
+          "Issue with the path".format(strFileName))
   elif strStore.lower() == "redis":
     objRedis.delete(strKey)
 
@@ -314,6 +324,30 @@ def FetchFileItem(strKey):
     except ValueError:
       print("Failed to decrypt the vault")
       return False
+
+def ResetStore():
+  """
+  Function that completely resets the choosen store to a blank slate
+  Parameters:
+    none
+  Returns:
+    Nothing
+  """
+  if strStore.lower() == "files":
+    try:
+      shutil.rmtree(strVault)
+    except PermissionError:
+      print("unable to delete file {}, "
+            "permission denied.".format(strVault))
+    except FileNotFoundError:
+      print("unable to delete file {}, "
+            "Issue with the path".format(strVault))
+    except OSError as err:
+      print("unable to delete {}, "
+            "OS Error {}".format(strVault,err))
+
+  elif strStore.lower() == "redis":
+    objRedis.flushdb()
 
 def FetchRedisItem(strKey):
   """
@@ -402,12 +436,13 @@ def DisplayHelp():
   Returns:
     none
   """
+  lstDontShow = ["list", "fetch", "clippy", "del", "passwd"]
   print("\nHere are the commands you can use:")
   for strItem in dictMenu:
     if len(lstVault) > 1:
       if strItem != "clippy" or bClippy:
         print("{} : {}".format(strItem, dictMenu[strItem]))
-    elif strItem != "list" and strItem != "fetch" and strItem != "clippy":
+    elif strItem not in lstDontShow:
       print("{} : {}".format(strItem, dictMenu[strItem]))
 
 def ChangePWD():
@@ -509,19 +544,23 @@ def ProcessCMD(objCmd):
         print("\nThe value of '{}' is:{} {}{}\n".format(
             strKey, strFormat, strValue, strFormatReset))
   elif strCmd == "del":
-    bLogin = True
-    if not bLoggedIn:
-      bLogin = UserLogin()
-    if bLogin:
-      if len(lstCmd) > 1:
-        strKey = lstCmd[1]
-      else:
-        ListItems()
-        strRed = "\x1b[1;{}m".format(31)
-        print("{}PLEASE NOTE THIS ACTION IS IRREVERSABLE AND CARRIES NO CONFIRMATION{}".format(
-            strRed, strFormatReset))
-        strKey = input("Please provide name of key you wish to remove: ")
-      DelItem(strKey)
+    if len(lstCmd) > 1:
+      strKey = lstCmd[1]
+    else:
+      ListItems()
+      strRed = "\x1b[1;{}m".format(31)
+      print("{}PLEASE NOTE THIS ACTION IS IRREVERSABLE AND CARRIES NO CONFIRMATION{}".format(
+          strRed, strFormatReset))
+      strKey = input("Please provide name of key you wish to remove: ")
+    DelItem(strKey)
+  elif strCmd == "reset":
+    ListItems()
+    strRed = "\x1b[1;{}m".format(31)
+    print("{}PLEASE NOTE THIS ACTION IS IRREVERSABLE AND COMPLETELY NUKES YOUR STORE{}".format(
+        strRed, strFormatReset))
+    strKey = input("Please type yes to confirm, all other input will considered as no: ")
+    if strKey.lower() == "yes":
+      ResetStore()
   elif strCmd == "clippy":
     if not bClippy:
       print("Clippy is not supported on your system")
@@ -568,7 +607,10 @@ def ListCount():
   if iVaultLen > 0:
     print("Vault is initialized and contains {} entries".format(iVaultLen))
   else:
-    print("Vault is uninilized, need to add an item to initialize")
+    if strCheckFile in lstVault:
+      print("Vault is inilized with no entries")
+    else:
+      print("Vault is uninilized, need to add an item to initialize")
 
 def FetchEnv(strVarName):
   """
