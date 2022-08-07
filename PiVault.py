@@ -40,13 +40,6 @@ except ImportError:
       [sys.executable, "-m", "pip", "install", 'maskpass'])
 finally:
   import maskpass
-try:
-  import pyperclip
-except ImportError:
-  subprocess.check_call(
-      [sys.executable, "-m", "pip", "install", 'pyperclip'])
-finally:
-  import pyperclip
 
 # End imports
 
@@ -455,7 +448,11 @@ def ListCount():
 
   global lstVault
   
-  lstVault = os.listdir(strVault)
+  if strStore.lower() == "files":
+    lstVault = os.listdir(strVault)
+  elif strStore.lower() == "redis":
+    lstVault = objRedis.keys("*")
+
   if strCheckFile in lstVault:
     iVaultLen = len(lstVault) - 1
   else:
@@ -480,6 +477,43 @@ def FetchEnv(strVarName):
   else:
     return ""
 
+def VaultInit():
+  global objRedis
+  global strVault
+
+  if strStore.lower() == "files":
+    if strVault != "":
+      print("Found {} in env for vault path".format(strVault))
+    else:
+      print("no vault environment valuable")
+    if strVault == "":
+      strVault = strBaseDir + strDefVault + "/"
+      print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
+    else:
+      print("Using vault path of {}".format(strVault))
+    strVault = strVault.replace("\\", "/")
+    if strVault[-1:] != "/":
+      strVault += "/"
+    if not os.path.exists(strVault):
+      os.makedirs(strVault)
+      print(
+          "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
+  elif strStore.lower() == "redis":
+    try:
+      import redis
+    except ImportError:
+      subprocess.check_call(
+          [sys.executable, "-m", "pip", "install", 'redis'])
+    finally:
+      import redis
+    strRedisHost = FetchEnv("HOST")
+    iRedisPort = FetchEnv("PORT")
+    iRedisDB = FetchEnv("DB")
+    objRedis = redis.Redis(host=strRedisHost, port=iRedisPort, db=iRedisDB)
+  else:
+    print("Unsupported store {}".format(strStore))
+    sys.exit(9)
+
 def main():
   """
   Initial entry point where some of the initialization takes place.
@@ -495,6 +529,9 @@ def main():
   global bHideValueIn
   global strFormat
   global strFormatReset
+  global pyperclip
+  global strStore
+  global strBaseDir
   
   DefineMenu()
   DefineColors()
@@ -513,28 +550,39 @@ def main():
       sys.version_info[0], sys.version_info[1], sys.version_info[2])
 
   print("This is a simple secrets vault script. Enter in a key value pair "
-        "and the value will be encrypted with AES and stored under the key.")
+        "and the value will be encrypted with AES-256 using MODE_CBC and stored under the key.")
   print ("This is running under Python Version {}".format(strVersion))
   print("Running from: {}".format(strRealPath))
   dtNow = time.asctime()
   print("The time now is {}".format(dtNow))
 
-  try:
-    pyperclip.paste()
-    print("Clipboard seems good so turning that on")
-    bClippy = True
-  except pyperclip.PyperclipException:
-    print("Failed to find the clipboard, so turning clippy off")
+  strEnableClippy = FetchEnv("CLIPPYENABLE")
+  if strEnableClippy.lower() == "false":
     bClippy = False
+  else:
+    try:
+      import pyperclip
+    except ImportError:
+      subprocess.check_call(
+          [sys.executable, "-m", "pip", "install", 'pyperclip'])
+    finally:
+      import pyperclip
+    try:
+      pyperclip.paste()
+      print("Clipboard seems good so turning that on")
+      bClippy = True
+    except pyperclip.PyperclipException:
+      print("Failed to find the clipboard, so turning clippy off")
+      bClippy = False
 
-  strVault = FetchEnv("VAULT")
+  strStore = FetchEnv("STORE")
   strPWD = FetchEnv("PWD")
   strHideIn = FetchEnv("HIDEINPUT")
   strValueColor = FetchEnv("VALUECOLOR")
-  if strVault != "":
-    print("Found {} in env for vault path".format(strVault))
-  else:
-    print("no vault environment valuable")
+  if strStore == "":
+    print("No store type environment, defaulting to Filesystem")
+    strStore = "Files"
+  
   if strHideIn == "":
     bHideValueIn = bDefHide
   elif strHideIn.lower() == "true":
@@ -545,30 +593,17 @@ def main():
     iColorID = dictColor[strDefValueColor]
   else:
     iColorID = dictColor[strValueColor]
-
   strFormat = "\x1b[1;{}m".format(iColorID)
   strFormatReset = "\x1b[0;0m"
+
+  strVault = FetchEnv("VAULT")
   if len(lstSysArg) > 1:
     if lstSysArg[1][:5].lower() == "vault":
       strVault = lstSysArg[1][6:]
       print("Found vault in argument: {}".format(strVault))
       del lstSysArg[1]
-    
-  if strVault == "":
-    strVault = strBaseDir + strDefVault + "/"
-    print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
-  else:
-    print("Using vault path of {}".format(strVault))
 
-  strVault = strVault.replace("\\", "/")
-  if strVault[-1:] != "/":
-    strVault += "/"
-
-  if not os.path.exists(strVault):
-    os.makedirs(strVault)
-    print("\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
-  
-
+  VaultInit()
   if len(lstSysArg) > 1:
     ListCount()
     bCont = False
