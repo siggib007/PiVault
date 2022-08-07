@@ -16,7 +16,8 @@
       {
         "TEST_VAR": "foo",
         "VAULT": "/temp/Vaultb",
-        "HIDEINPUT": "true"
+        "HIDEINPUT": "true",
+        "DOPPLER_ENV": "1"
       }
     }
   ]
