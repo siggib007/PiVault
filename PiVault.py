@@ -13,6 +13,9 @@ pip install pycryptodome
 pip install maskpass
 pip install pyperclip
 
+If you are using Redis also:
+pip install redis
+
 '''
 # Import libraries
 import os
@@ -628,6 +631,13 @@ def FetchEnv(strVarName):
     return ""
 
 def VaultInit():
+  """
+  Function that handles initial inititialization of the specified store.
+  Parameters:
+    none
+  Returns:
+    nothing returned. Applicable global variables are set.
+  """
   global objRedis
   global strVault
 
