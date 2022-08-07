@@ -138,11 +138,12 @@ def DefineMenu():
   global dictMenu
 
   dictMenu = {}
-  dictMenu["help"]  = "Displays this message. Can also use /h -h and --help"
-  dictMenu["quit"]  = "exit out of the script"
-  dictMenu["add"]   = "Adds a new key value pair"
-  dictMenu["list"]  = "List out all keys"
-  dictMenu["fetch"] = "fetch a specified key"
+  dictMenu["help"]   = "Displays this message. Can also use /h -h and --help"
+  dictMenu["quit"]   = "exit out of the script"
+  dictMenu["add"]    = "Adds a new key value pair"
+  dictMenu["del"]    = "removes the specified key"
+  dictMenu["list"]   = "List out all keys"
+  dictMenu["fetch"]  = "fetch a specified key"
   dictMenu["clippy"] = "put specified key value on the clipboard"
   dictMenu["passwd"] = "Change the password"
 
@@ -203,10 +204,10 @@ def UserLogin():
     print("unable to decrypt vault, please try again")
     return False
 
-def AddItem(strKey,strValue,bConf=True,strPass=""):
+def AddFileItem(strKey,strValue,bConf=True,strPass=""):
   """
   Function that encrypts the string provided and 
-  stores the key value pair in the choosen data store
+  stores the key value pair in the file system data store
   Parameters:
     strKey: The name of the key part of the key value pair
     strValue: The value part of the key value pair
@@ -235,9 +236,65 @@ def AddItem(strKey,strValue,bConf=True,strPass=""):
     objFileOut.close()
     return True
 
-def FetchItem(strKey):
+def AddRedisItem(strKey, strValue, bConf=True, strPass=""):
   """
-  Function that fetches the specified key from the datastore and decrypts it.
+  Function that encrypts the string provided and
+  stores the key value pair in the Redis data store
+  Parameters:
+    strKey: The name of the key part of the key value pair
+    strValue: The value part of the key value pair
+    bConf: Optional, defaults to True. If key updates should be confirmed
+    strPass: Optional, defaults to blank string. Use a password other than
+              that validated by login function
+  Returns:
+    True/false boolean to indicate if the value was successful or not
+  """
+  if strPass == "":
+    strPass = strPWD
+  if strKey in lstVault and bConf:
+    print("Key '{}' already exists, do you wish to overwrite it?".format(strKey))
+    strResp = input("Please type yes to confirm, all other input is a no: ")
+    if strResp.lower() != "yes":
+      return False
+  if objRedis.set(strKey, StringEncryptor(strPass, strValue)):
+    return True
+  else:
+    return False
+
+def AddItem(strKey, strValue, bConf=True, strPass=""):
+  """
+  Function that calls the right function to encrypt and store the value depend on selected store
+  Parameters:
+    strKey: The name of the key part of the key value pair
+    strValue: The value part of the key value pair
+    bConf: Optional, defaults to True. If key updates should be confirmed
+    strPass: Optional, defaults to blank string. Use a password other than 
+              that validated by login function
+  Returns:
+    True/false boolean to indicate if the was successful or not
+  """
+  if strStore.lower() == "files":
+    return AddFileItem(strKey, strValue, bConf, strPass)
+  elif strStore.lower() == "redis":
+    return AddRedisItem(strKey, strValue, bConf, strPass)
+
+def DelItem(strKey):
+  """
+  Function that removes a key from the datastore
+  Parameters:
+    strKey: The name of the key part of the key value pair
+  Returns:
+    Nothing
+  """
+  if strStore.lower() == "files":
+    strFileName = strVault + strKey
+    os.remove(strFileName)
+  elif strStore.lower() == "redis":
+    objRedis.delete(strKey)
+
+def FetchFileItem(strKey):
+  """
+  Function that fetches the specified key from the file store and decrypts it.
   Parameters:
     strKey: The name of the key to be fetched
   Returns:
@@ -257,6 +314,35 @@ def FetchItem(strKey):
     except ValueError:
       print("Failed to decrypt the vault")
       return False
+
+def FetchRedisItem(strKey):
+  """
+  Function that fetches the specified key from Redis and decrypts it.
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    Either the decrypted string or boolean false to indicate a failure
+  """
+  strValue = objRedis.get(strKey)
+  strValue = strValue.decode("utf-8")
+  try:
+    return StringDecryptor(strPWD, strValue)
+  except ValueError:
+    print("Failed to decrypt the vault")
+    return False
+
+def FetchItem(strKey):
+  """
+  Function that calls the right function to fetch and decrypt depend on selected store
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    Either the decrypted string or boolean false to indicate a failure
+  """
+  if strStore.lower() == "files":
+    return FetchFileItem(strKey)
+  elif strStore.lower() == "redis":
+    return FetchRedisItem(strKey)
 
 def Fetch2Clip(strKey):
   """
@@ -286,6 +372,8 @@ def ListItems():
   if len(lstVault) > 0:
     print("\nHere are all the keys in the vault:")
     for strItem in lstVault:
+      if isinstance(strItem,bytes):
+        strItem = strItem.decode("UTF-8")
       if strItem != strCheckFile:
         print("{}".format(strItem))
 
@@ -420,6 +508,20 @@ def ProcessCMD(objCmd):
       if strValue != False:
         print("\nThe value of '{}' is:{} {}{}\n".format(
             strKey, strFormat, strValue, strFormatReset))
+  elif strCmd == "del":
+    bLogin = True
+    if not bLoggedIn:
+      bLogin = UserLogin()
+    if bLogin:
+      if len(lstCmd) > 1:
+        strKey = lstCmd[1]
+      else:
+        ListItems()
+        strRed = "\x1b[1;{}m".format(31)
+        print("{}PLEASE NOTE THIS ACTION IS IRREVERSABLE AND CARRIES NO CONFIRMATION{}".format(
+            strRed, strFormatReset))
+        strKey = input("Please provide name of key you wish to remove: ")
+      DelItem(strKey)
   elif strCmd == "clippy":
     if not bClippy:
       print("Clippy is not supported on your system")
@@ -451,7 +553,13 @@ def ListCount():
   if strStore.lower() == "files":
     lstVault = os.listdir(strVault)
   elif strStore.lower() == "redis":
-    lstVault = objRedis.keys("*")
+    lstTmp = objRedis.keys("*")
+    lstVault = []
+    for strItem in lstTmp:
+      if isinstance(strItem, bytes):
+        lstVault.append(strItem.decode("UTF-8"))
+      else:
+        lstVault.append(strItem)
 
   if strCheckFile in lstVault:
     iVaultLen = len(lstVault) - 1
