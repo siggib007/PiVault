@@ -11,7 +11,7 @@
       "program": "${file}",
       "console": "integratedTerminal",
       "justMyCode": true,
-      "args": ["add","foo","bar"],
+      //"args": ["add","foo","bar"],
       "env": 
       {
         "DOPPLER_ENV": "1"

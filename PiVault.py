@@ -195,16 +195,14 @@ def SQLOp(strCmd, strKey="", strValue=""):
     strSQLTable = "CREATE TABLE IF NOT EXISTS tblVault(strkey text not null, strValue text not null);"
     strSQLIndex = "CREATE UNIQUE INDEX IF NOT EXISTS idxKey on tblVault (strKey);"
     try:
-      objSQLite = sqlite3.connect(strVault)
       objSQLite.execute(strSQLTable)
       objSQLite.execute(strSQLIndex)
-      print("Connecto to SQLite {}, table created and indexed".format(sqlite3.version))
       return True
     except DBError as err:
       print("SQLite failed to create table or index: {}".format(err))
       return False
   elif strCmd == "select":
-    strSQLQuery = "select * from tblVault"
+    strSQLQuery = "select strKey, strValue from tblVault"
     if strKey != "":
       strSQLQuery += " where strKey = '{}';".format(strKey)
     try:
@@ -219,14 +217,14 @@ def SQLOp(strCmd, strKey="", strValue=""):
     objSQLite.commit()
     return True
   elif strCmd == "insert":
-    strSQL = "insert into tblVault (strKey,strValue) values('{}','{}');".format(strValue, strKey)
+    strSQL = "insert into tblVault (strKey,strValue) values('{}','{}');".format(strKey, strValue)
     objSQLite.execute(strSQL)
     objSQLite.commit()
     return True
   elif strCmd == "delete":
-    strSQLQuery = "delete from tblVault"
+    strSQL = "delete from tblVault"
     if strKey != "":
-      strSQLQuery += " where strKey = '{}';".format(strKey)
+      strSQL += " where strKey = '{}';".format(strKey)
     objSQLite.execute(strSQL)
     objSQLite.commit()
     return True
@@ -522,7 +520,9 @@ def VaultInit():
     strRedisHost = FetchEnv("HOST")
     iRedisPort = FetchEnv("PORT")
     iRedisDB = FetchEnv("DB")
-    objRedis = redis.Redis(host=strRedisHost, port=iRedisPort, db=iRedisDB)
+    strDBpwd = FetchEnv("DBPWD")
+    objRedis = redis.Redis(
+        host=strRedisHost, port=iRedisPort, db=iRedisDB, password=strDBpwd)
   elif strStore.lower() == "sqlite":
     if strVault == "":
       print("No command argument vault specifier, checking environment variable")
@@ -532,7 +532,7 @@ def VaultInit():
     else:
       print("no vault environment valuable")
     if strVault == "":
-      strVault = strBaseDir + strDefVault
+      strVault = strBaseDir + strDefVault + ".db"
       print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
     else:
       print("Using vault path of {}".format(strVault))
@@ -542,7 +542,7 @@ def VaultInit():
     objSQLite = None
     try:
       objSQLite = sqlite3.connect(strVault)
-      print("Connecto to SQLite {}".format(sqlite3.version))
+      print("Connected to SQLite {}".format(sqlite3.version))
     except DBError as err:
       print("SQLite database operation failed: {}".format(err))
       sys.exit(9)
@@ -569,7 +569,11 @@ def ListCount():
   if strStore.lower() == "files":
     lstVault = os.listdir(strVault)
   elif strStore.lower() == "redis":
-    lstTmp = objRedis.keys("*")
+    try:
+      lstTmp = objRedis.keys("*")
+    except Exception as err:
+      print("Failed to fetch keys from Redis: {}".format(err))
+      sys.exit(9)
     lstVault = []
     for strItem in lstTmp:
       if isinstance(strItem, bytes):
@@ -750,7 +754,7 @@ def FetchSQLItem(strKey):
     Either the decrypted string or boolean false to indicate a failure
   """
   lstResult = SQLOp("select",strKey)
-  strValue = lstResult[0][0]
+  strValue = lstResult[0][1]
   try:
     return StringDecryptor(strPWD, strValue)
   except ValueError:
