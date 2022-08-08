@@ -17,11 +17,14 @@ DESCRIPTION
     pip install pycryptodome
     pip install maskpass
     pip install pyperclip
+    
+    If you are using Redis also:
+    pip install redis
 
 FUNCTIONS
-    AddItem(strKey, strValue, bConf=True, strPass='')
+    AddFileItem(strKey, strValue, bConf=True, strPass='')
         Function that encrypts the string provided and 
-        stores the key value pair in the choosen data store
+        stores the key value pair in the file system data store
         Parameters:
           strKey: The name of the key part of the key value pair
           strValue: The value part of the key value pair
@@ -30,6 +33,41 @@ FUNCTIONS
                     that validated by login function
         Returns:
           True/false boolean to indicate if the was successful or not
+    
+    AddItem(strKey, strValue, bConf=True, strPass='')
+        Function that calls the right function to encrypt and store the value depend on selected store
+        Parameters:
+          strKey: The name of the key part of the key value pair
+          strValue: The value part of the key value pair
+          bConf: Optional, defaults to True. If key updates should be confirmed
+          strPass: Optional, defaults to blank string. Use a password other than 
+                    that validated by login function
+        Returns:
+          True/false boolean to indicate if the was successful or not
+    
+    AddRedisItem(strKey, strValue, bConf=True, strPass='')
+        Function that encrypts the string provided and
+        stores the key value pair in the Redis data store
+        Parameters:
+          strKey: The name of the key part of the key value pair
+          strValue: The value part of the key value pair
+          bConf: Optional, defaults to True. If key updates should be confirmed
+          strPass: Optional, defaults to blank string. Use a password other than
+                    that validated by login function
+        Returns:
+          True/false boolean to indicate if the value was successful or not
+    
+    AddSQLItem(strKey, strValue, bConf=True, strPass='')
+        Function that encrypts the string provided and
+        stores the key value pair in the selected database
+        Parameters:
+          strKey: The name of the key part of the key value pair
+          strValue: The value part of the key value pair
+          bConf: Optional, defaults to True. If key updates should be confirmed
+          strPass: Optional, defaults to blank string. Use a password other than
+                    that validated by login function
+        Returns:
+          True/false boolean to indicate if the value was successful or not
     
     ChangePWD()
         Function that loops through all items in the store, decrypts it then re-encrypts with new password.
@@ -59,6 +97,13 @@ FUNCTIONS
         Returns:
           Sets global variable dictMenu but returns nothing
     
+    DelItem(strKey)
+        Function that removes a key from the datastore
+        Parameters:
+          strKey: The name of the key part of the key value pair
+        Returns:
+          Nothing
+    
     DisplayHelp()
         Function that displays a help message.
         Parameters:
@@ -82,8 +127,29 @@ FUNCTIONS
         Returns:
           The content of the environment or empty string
     
+    FetchFileItem(strKey)
+        Function that fetches the specified key from the file store and decrypts it.
+        Parameters:
+          strKey: The name of the key to be fetched
+        Returns:
+          Either the decrypted string or boolean false to indicate a failure
+    
     FetchItem(strKey)
-        Function that fetches the specified key from the datastore and decrypts it.
+        Function that calls the right function to fetch and decrypt depend on selected store
+        Parameters:
+          strKey: The name of the key to be fetched
+        Returns:
+          Either the decrypted string or boolean false to indicate a failure
+    
+    FetchRedisItem(strKey)
+        Function that fetches the specified key from Redis and decrypts it.
+        Parameters:
+          strKey: The name of the key to be fetched
+        Returns:
+          Either the decrypted string or boolean false to indicate a failure
+    
+    FetchSQLItem(strKey)
+        Function that fetches the specified key from database and decrypts it.
         Parameters:
           strKey: The name of the key to be fetched
         Returns:
@@ -118,21 +184,37 @@ FUNCTIONS
         Returns:
           nothing
     
-    StringDecryptor(strkey, strData, decode=True)
+    ResetStore()
+        Function that completely resets the choosen store to a blank slate
+        Parameters:
+          none
+        Returns:
+          Nothing
+    
+    SQLOp(strCmd, strKey='', strValue='')
+        This handles all database operations
+        Parameters:
+          strCmd: Which operation is needed
+          strkey: Optional, defaults to an empty string. The name of the key part of the key value pair
+          strValue: Optional, defaults to an empty string. The value part of the key value pair.
+        Returns:
+          Decrypted clear text simple string
+    
+    StringDecryptor(strPWD, strData, decode=True)
         This handles decrypting a string encrypted with AES
         Adopted from https://stackoverflow.com/a/44212550/8549454
         Parameters:
-          strkey: Simple string with encryption password
+          strPWD: Simple string with encryption password
           strData: Simple string with the encrypted data
           encode: Optional, defaults to true. A boolean to indicate if the data is Base64 encoded.
         Returns:
           Decrypted clear text simple string
     
-    StringEncryptor(strkey, strData, encode=True)
+    StringEncryptor(strPWD, strData, encode=True)
         This handles encrypting a string using AES.
         Adopted from https://stackoverflow.com/a/44212550/8549454
         Parameters:
-          strkey: Simple string with encryption password
+          strPWD: Simple string with encryption password
           strData: Simple string with the data to be encrypted
           encode: Optional, defaults to true. A boolean to indicate the return should be Base64 encoded.
         Returns:
@@ -144,6 +226,13 @@ FUNCTIONS
           none
         Returns:
           true/false boolean to indicate if password supplied is good or not
+    
+    VaultInit()
+        Function that handles initial inititialization of the specified store.
+        Parameters:
+          none
+        Returns:
+          nothing returned. Applicable global variables are set.
     
     main()
         Initial entry point where some of the initialization takes place.
@@ -157,10 +246,10 @@ DATA
     bLoggedIn = False
     strCheckFile = 'VaultInit'
     strCheckValue = 'This is a simple secrets vault'
+    strDefStore = 'files'
     strDefValueColor = 'red'
     strDefVault = 'VaultData'
 
-FILE
-    /root/PiVault/PiVault.py
+
 
 

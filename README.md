@@ -3,12 +3,14 @@ This is a very simply CLI based secrets manager written in python. This has been
 
 When I say simple you can store key/value pair, fetch a value based on a key and display it, and fetch a value based on a key and place it on the clipboard. That's pretty much it, that's how simple it is. The clipboard feature works across SSH if you have X11 setup properly on both the client and the server. If you have xclip installed and can do all sorts of X11 stuff, then the clipboard should work across the SSH connection. Otherwise the clipboard feature is unavailable. You'll get a message when you start the script whether clipboard feature is working or not. 
 
-Everything is a key value pair where the key is public but the value is secret. The value is encrypted using AES-256 in MODE_CBC, if you don't know what that means, just know that is one of the best encryption methods available when this was written in August of 2022. When used with a strong, un-guessable, password it has not been cracked as of this writing.  After the value is encrypted it is base64 encoded and stored under the key in the chosen storage engine. AT this writing I've included support for filesystem and Redis as a storage engine, however I've got plan to add various database support. I also plan to offer PGP encryption as well. This ReadMe will be updated as I complete these options. You can see more details about my plan on the issue tab.
+Everything is a key value pair where the key is public but the value is secret. The value is encrypted using AES-256 in MODE_CBC, if you don't know what that means, just know that is one of the best encryption methods available when this was written in August of 2022. When used with a strong, un-guessable, password it has not been cracked as of this writing.  After the value is encrypted it is base64 encoded and stored under the key in the chosen storage engine. At the time of this writing I've included support for SQLite, filesystem and Redis as a storage engine, however I've got plan to add various other database support. I also plan to offer PGP encryption as well. This ReadMe will be updated as I complete these options. You can see more details about my plan on the issue tab.
 
 For the filesystem storage engine each key value pair is stored in its own file in a specified folder, where the key is the filename and the content of the file is the encrypted base64 encoded blob. If no folder path is provided then a folder called `VaultData` is created in the same directory as the script. You can provide an alternative path in one of two ways:
 
 - Create and environment variable called VAULT with the preferred vault path, relative to the script or absolute path
 - Supply the path as a command argument during execution. The argument should be formatted as `vault=~/MyVault` and it needs to be the first argument
+
+SQLite database file will also be named after this vault variable, just has .db added after it.
 
 By default password entries are masked but value entries are not. If you wish to have value entries masked, create a environment variable called HIDEINPUT and set it to true.
 
