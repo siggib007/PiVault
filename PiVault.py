@@ -11,11 +11,15 @@ Encrypt/decrypt functions copied from https://stackoverflow.com/a/44212550/85494
 Following packages need to be installed
 pip install pycryptodome
 pip install maskpass
+
+If you want to use clipboard feature
 pip install pyperclip
 
 If you are using Redis also:
 pip install redis
 
+If you are using TOTP feature
+pip install pyotp
 '''
 # Import libraries
 import os
@@ -25,6 +29,7 @@ import sys
 import subprocess
 import base64
 import sqlite3
+import re
 from sqlite3 import Error as DBError 
 from xml.dom.expatbuilder import InternalSubsetExtractor
 
@@ -154,6 +159,7 @@ def DefineMenu():
   dictMenu["fetch"]  = "fetch a specified key"
   dictMenu["clippy"] = "put specified key value on the clipboard"
   dictMenu["passwd"] = "Change the password"
+  dictMenu["totp"]   = "Displays TOTP code for the secret stored at the specified key"
 
 def DefineColors():
   """
@@ -279,6 +285,30 @@ def Fetch2Clip(strKey):
     except pyperclip.PyperclipException:
       print("Failed to find the clipboard, so outputting it here")
 
+def ShowTOTP(strKey):
+  """
+  Function that fetches the specified key from the datastore and decrypts it.
+  Decrypted value is then placed on the clipboard and not shown.
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    nothing
+  """
+  strB32Pattern = "[^A-Z2-7]"
+  strValue = FetchItem(strKey)
+  if strValue != False:
+    if strValue[:15] == "otpauth://totp/":
+      objTOPT = pyotp.parse_uri(strValue)
+      return objTOPT.now()
+    elif len(re.findall(strB32Pattern, strValue)) == 0:
+      objTOPT = pyotp.TOTP(strValue)
+      return objTOPT.now()
+    else:
+      print("Not a valid TOTP Secret")
+      return False
+  else:
+    return False
+
 def ListItems():
   """
   Function that just lists out all the keys in the store.
@@ -320,12 +350,14 @@ def DisplayHelp():
   Returns:
     none
   """
-  lstDontShow = ["list", "fetch", "clippy", "del", "passwd"]
+  lstDontShow = ["list", "fetch", "clippy", "del", "passwd","totp"]
   print("\nHere are the commands you can use:")
   for strItem in dictMenu:
     if len(lstVault) > 1:
       if strItem != "clippy" or bClippy:
         print("{} : {}".format(strItem, dictMenu[strItem]))
+      #if strItem != "totp" or bTOTP:
+      #  print("{} : {}".format(strItem, dictMenu[strItem]))
     elif strItem not in lstDontShow:
       print("{} : {}".format(strItem, dictMenu[strItem]))
 
@@ -459,6 +491,24 @@ def ProcessCMD(objCmd):
         ListItems()
         strKey = input("Please provide name of key you wish to fetch: ")
       Fetch2Clip(strKey)
+  elif strCmd == "totp":
+    if not bTOTP:
+      print("TOTP Function is disabled")
+      return
+    bLogin = True
+    if not bLoggedIn:
+      bLogin = UserLogin()
+    if bLogin:
+      if len(lstCmd) > 1:
+        strKey = lstCmd[1]
+      else:
+        ListItems()
+        strKey = input("Please provide name of key you wish to get TOTP code for: ")
+      strResponse = ShowTOTP(strKey)
+      if isinstance(strResponse,str):
+        print("Your code is: {}".format(strResponse))
+      else:
+        print("failed to generate code")
   else:
     print("Not implemented")
 
@@ -838,10 +888,12 @@ def main():
   global strVault
   global strPWD
   global bClippy
+  global bTOTP
   global bHideValueIn
   global strFormat
   global strFormatReset
   global pyperclip
+  global pyotp
   global strStore
   global strBaseDir
   
@@ -886,6 +938,20 @@ def main():
     except pyperclip.PyperclipException:
       print("Failed to find the clipboard, so turning clippy off")
       bClippy = False
+
+  bTOTP = True
+  strEnableTOTP = FetchEnv("TOTPENABLE")
+  if strEnableTOTP.lower() == "false":
+    bTOTP = False
+    print("Per environment variable, TOTP function has been turned off")
+  else:
+    try:
+      import pyotp
+    except ImportError:
+      subprocess.check_call(
+          [sys.executable, "-m", "pip", "install", 'pyotp'])
+    finally:
+      import pyotp
 
   strStore = FetchEnv("STORE")
   strPWD = FetchEnv("PWD")
