@@ -24,6 +24,8 @@ import time
 import sys
 import subprocess
 import base64
+import sqlite3
+from sqlite3 import Error as DBError 
 from xml.dom.expatbuilder import InternalSubsetExtractor
 
 try:
@@ -208,178 +210,6 @@ def UserLogin():
   else:
     print("unable to decrypt vault, please try again")
     return False
-
-def AddFileItem(strKey,strValue,bConf=True,strPass=""):
-  """
-  Function that encrypts the string provided and 
-  stores the key value pair in the file system data store
-  Parameters:
-    strKey: The name of the key part of the key value pair
-    strValue: The value part of the key value pair
-    bConf: Optional, defaults to True. If key updates should be confirmed
-    strPass: Optional, defaults to blank string. Use a password other than 
-              that validated by login function
-  Returns:
-    True/false boolean to indicate if the was successful or not
-  """
-  if strPass == "":
-    strPass = strPWD
-  strFileOut = strVault + strKey
-  if os.path.exists(strFileOut) and bConf:
-    print("Key '{}' already exists, do you wish to overwrite it?".format(strKey))
-    strResp = input("Please type yes to confirm, all other input is a no: ")
-    if strResp.lower() != "yes":
-      return False
-
-  tmpResponse = GetFileHandle(strFileOut, "w")
-  if isinstance(tmpResponse, str):
-    print(tmpResponse)
-    return False
-  else:
-    objFileOut = tmpResponse
-    objFileOut.write(StringEncryptor(strPass, strValue))
-    objFileOut.close()
-    return True
-
-def AddRedisItem(strKey, strValue, bConf=True, strPass=""):
-  """
-  Function that encrypts the string provided and
-  stores the key value pair in the Redis data store
-  Parameters:
-    strKey: The name of the key part of the key value pair
-    strValue: The value part of the key value pair
-    bConf: Optional, defaults to True. If key updates should be confirmed
-    strPass: Optional, defaults to blank string. Use a password other than
-              that validated by login function
-  Returns:
-    True/false boolean to indicate if the value was successful or not
-  """
-  if strPass == "":
-    strPass = strPWD
-  if strKey in lstVault and bConf:
-    print("Key '{}' already exists, do you wish to overwrite it?".format(strKey))
-    strResp = input("Please type yes to confirm, all other input is a no: ")
-    if strResp.lower() != "yes":
-      return False
-  if objRedis.set(strKey, StringEncryptor(strPass, strValue)):
-    return True
-  else:
-    return False
-
-def AddItem(strKey, strValue, bConf=True, strPass=""):
-  """
-  Function that calls the right function to encrypt and store the value depend on selected store
-  Parameters:
-    strKey: The name of the key part of the key value pair
-    strValue: The value part of the key value pair
-    bConf: Optional, defaults to True. If key updates should be confirmed
-    strPass: Optional, defaults to blank string. Use a password other than 
-              that validated by login function
-  Returns:
-    True/false boolean to indicate if the was successful or not
-  """
-  if strStore.lower() == "files":
-    return AddFileItem(strKey, strValue, bConf, strPass)
-  elif strStore.lower() == "redis":
-    return AddRedisItem(strKey, strValue, bConf, strPass)
-
-def DelItem(strKey):
-  """
-  Function that removes a key from the datastore
-  Parameters:
-    strKey: The name of the key part of the key value pair
-  Returns:
-    Nothing
-  """
-  if strStore.lower() == "files":
-    if strKey != "":
-      strFileName = strVault + strKey
-      try:
-        os.remove(strFileName)
-      except PermissionError:
-        print("unable to delete file {}, "
-        "permission denied.".format(strFileName))
-      except FileNotFoundError:
-        print("unable to delete file {}, "
-          "Issue with the path".format(strFileName))
-  elif strStore.lower() == "redis":
-    objRedis.delete(strKey)
-
-def FetchFileItem(strKey):
-  """
-  Function that fetches the specified key from the file store and decrypts it.
-  Parameters:
-    strKey: The name of the key to be fetched
-  Returns:
-    Either the decrypted string or boolean false to indicate a failure
-  """
-  strFileIn = strVault + strKey
-  tmpResponse = GetFileHandle(strFileIn, "r")
-  if isinstance(tmpResponse, str):
-    print(tmpResponse)
-    return False
-  else:
-    objFileIn = tmpResponse
-    strValue = objFileIn.read()
-    objFileIn.close()
-    try:
-      return StringDecryptor(strPWD, strValue)
-    except ValueError:
-      print("Failed to decrypt the vault")
-      return False
-
-def ResetStore():
-  """
-  Function that completely resets the choosen store to a blank slate
-  Parameters:
-    none
-  Returns:
-    Nothing
-  """
-  if strStore.lower() == "files":
-    try:
-      shutil.rmtree(strVault)
-    except PermissionError:
-      print("unable to delete file {}, "
-            "permission denied.".format(strVault))
-    except FileNotFoundError:
-      print("unable to delete file {}, "
-            "Issue with the path".format(strVault))
-    except OSError as err:
-      print("unable to delete {}, "
-            "OS Error {}".format(strVault,err))
-
-  elif strStore.lower() == "redis":
-    objRedis.flushdb()
-
-def FetchRedisItem(strKey):
-  """
-  Function that fetches the specified key from Redis and decrypts it.
-  Parameters:
-    strKey: The name of the key to be fetched
-  Returns:
-    Either the decrypted string or boolean false to indicate a failure
-  """
-  strValue = objRedis.get(strKey)
-  strValue = strValue.decode("utf-8")
-  try:
-    return StringDecryptor(strPWD, strValue)
-  except ValueError:
-    print("Failed to decrypt the vault")
-    return False
-
-def FetchItem(strKey):
-  """
-  Function that calls the right function to fetch and decrypt depend on selected store
-  Parameters:
-    strKey: The name of the key to be fetched
-  Returns:
-    Either the decrypted string or boolean false to indicate a failure
-  """
-  if strStore.lower() == "files":
-    return FetchFileItem(strKey)
-  elif strStore.lower() == "redis":
-    return FetchRedisItem(strKey)
 
 def Fetch2Clip(strKey):
   """
@@ -581,40 +411,6 @@ def ProcessCMD(objCmd):
   else:
     print("Not implemented")
 
-def ListCount():
-  """
-  Function that displays information about status of the vault and number of members.
-  Parameters:
-    none
-  Returns:
-    nothing
-  """
-
-  global lstVault
-  
-  if strStore.lower() == "files":
-    lstVault = os.listdir(strVault)
-  elif strStore.lower() == "redis":
-    lstTmp = objRedis.keys("*")
-    lstVault = []
-    for strItem in lstTmp:
-      if isinstance(strItem, bytes):
-        lstVault.append(strItem.decode("UTF-8"))
-      else:
-        lstVault.append(strItem)
-
-  if strCheckFile in lstVault:
-    iVaultLen = len(lstVault) - 1
-  else:
-    iVaultLen = len(lstVault)
-  if iVaultLen > 0:
-    print("Vault is initialized and contains {} entries".format(iVaultLen))
-  else:
-    if strCheckFile in lstVault:
-      print("Vault is inilized with no entries")
-    else:
-      print("Vault is uninilized, need to add an item to initialize")
-
 def FetchEnv(strVarName):
   """
   Function that fetches the specified content of specified environment variable, 
@@ -640,8 +436,12 @@ def VaultInit():
   """
   global objRedis
   global strVault
+  global objSQLite
 
   if strStore.lower() == "files":
+    if strVault == "":
+      print("No command argument vault specifier, checking environment variable")
+      strVault = FetchEnv("VAULT")
     if strVault != "":
       print("Found {} in env for vault path".format(strVault))
     else:
@@ -670,9 +470,320 @@ def VaultInit():
     iRedisPort = FetchEnv("PORT")
     iRedisDB = FetchEnv("DB")
     objRedis = redis.Redis(host=strRedisHost, port=iRedisPort, db=iRedisDB)
+  elif strStore.lower() == "sqlite":
+    if strVault == "":
+      print("No command argument vault specifier, checking environment variable")
+      strVault = FetchEnv("VAULT")
+    if strVault != "":
+      print("Found {} in env for vault path".format(strVault))
+    else:
+      print("no vault environment valuable")
+    if strVault == "":
+      strVault = strBaseDir + strDefVault
+      print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
+    else:
+      print("Using vault path of {}".format(strVault))
+    strVault = strVault.replace("\\", "/")
+    if strVault[-1:] == "/":
+      strVault = strVault[:-1]
+    objSQLite = None
+    strSQLTable = "CREATE TABLE IF NOT EXISTS tblVault(strkey text not null, strValue text not null);"
+    strSQLIndex = "CREATE UNIQUE INDEX IF NOT EXISTS idxKey on tblVault (strKey);"
+    try:
+      objSQLite = sqlite3.connect(strVault)
+      objSQLite.execute(strSQLTable)
+      objSQLite.execute(strSQLIndex)
+      print("Connecto to SQLite {}, table created and indexed".format(sqlite3.version))
+    except DBError as err:
+      print("SQLite database operation failed: {}".format(err))
+      sys.exit(9)
   else:
     print("Unsupported store {}".format(strStore))
     sys.exit(9)
+
+def ListCount():
+  """
+  Function that displays information about status of the vault and number of members.
+  Parameters:
+    none
+  Returns:
+    nothing
+  """
+
+  global lstVault
+
+  if strStore.lower() == "files":
+    lstVault = os.listdir(strVault)
+  elif strStore.lower() == "redis":
+    lstTmp = objRedis.keys("*")
+    lstVault = []
+    for strItem in lstTmp:
+      if isinstance(strItem, bytes):
+        lstVault.append(strItem.decode("UTF-8"))
+      else:
+        lstVault.append(strItem)
+  elif strStore.lower() == "sqlite":
+    strSQLQuery = "select * from tblVault;"
+    try:
+      dbCursor = objSQLite.execute(strSQLQuery)
+      lstVault = []
+      for lstRow in dbCursor:
+        lstVault.append(lstRow[0])
+    except DBError as err:
+      print("Failed to query to SQLite database: {}".format(err))
+      sys.exit(9)
+
+  if strCheckFile in lstVault:
+    iVaultLen = len(lstVault) - 1
+  else:
+    iVaultLen = len(lstVault)
+  if iVaultLen > 0:
+    print("Vault is initialized and contains {} entries".format(iVaultLen))
+  else:
+    if strCheckFile in lstVault:
+      print("Vault is inilized with no entries")
+    else:
+      print("Vault is uninilized, need to add an item to initialize")
+
+def AddFileItem(strKey, strValue, bConf=True, strPass=""):
+  """
+  Function that encrypts the string provided and 
+  stores the key value pair in the file system data store
+  Parameters:
+    strKey: The name of the key part of the key value pair
+    strValue: The value part of the key value pair
+    bConf: Optional, defaults to True. If key updates should be confirmed
+    strPass: Optional, defaults to blank string. Use a password other than 
+              that validated by login function
+  Returns:
+    True/false boolean to indicate if the was successful or not
+  """
+  if strPass == "":
+    strPass = strPWD
+  strFileOut = strVault + strKey
+  if os.path.exists(strFileOut) and bConf:
+    print("Key '{}' already exists, do you wish to overwrite it?".format(strKey))
+    strResp = input("Please type yes to confirm, all other input is a no: ")
+    if strResp.lower() != "yes":
+      return False
+
+  tmpResponse = GetFileHandle(strFileOut, "w")
+  if isinstance(tmpResponse, str):
+    print(tmpResponse)
+    return False
+  else:
+    objFileOut = tmpResponse
+    objFileOut.write(StringEncryptor(strPass, strValue))
+    objFileOut.close()
+    return True
+
+def AddRedisItem(strKey, strValue, bConf=True, strPass=""):
+  """
+  Function that encrypts the string provided and
+  stores the key value pair in the Redis data store
+  Parameters:
+    strKey: The name of the key part of the key value pair
+    strValue: The value part of the key value pair
+    bConf: Optional, defaults to True. If key updates should be confirmed
+    strPass: Optional, defaults to blank string. Use a password other than
+              that validated by login function
+  Returns:
+    True/false boolean to indicate if the value was successful or not
+  """
+  if strPass == "":
+    strPass = strPWD
+  if strKey in lstVault and bConf:
+    print("Key '{}' already exists, do you wish to overwrite it?".format(strKey))
+    strResp = input("Please type yes to confirm, all other input is a no: ")
+    if strResp.lower() != "yes":
+      return False
+  if objRedis.set(strKey, StringEncryptor(strPass, strValue)):
+    return True
+  else:
+    return False
+
+def AddSQLItem(strKey, strValue, bConf=True, strPass=""):
+  """
+  Function that encrypts the string provided and
+  stores the key value pair in the selected database
+  Parameters:
+    strKey: The name of the key part of the key value pair
+    strValue: The value part of the key value pair
+    bConf: Optional, defaults to True. If key updates should be confirmed
+    strPass: Optional, defaults to blank string. Use a password other than
+              that validated by login function
+  Returns:
+    True/false boolean to indicate if the value was successful or not
+  """
+  if strPass == "":
+    strPass = strPWD
+  if strKey in lstVault:
+    if bConf:
+      print("Key '{}' already exists, do you wish to overwrite it?".format(strKey))
+      strResp = input("Please type yes to confirm, all other input is a no: ")
+    else:
+      strResp = "yes"
+    if strResp.lower() == "yes":
+      strSQL = "update tblVault set strValue = '{}' where strKey = '{}';".format(
+          StringEncryptor(strPass, strValue), strKey)
+      objSQLite.execute(strSQL)
+      objSQLite.commit()
+      if objSQLite.total_changes == 1:
+        return True
+      else:
+        return False
+    else:
+      return False
+  else:
+    strSQL = "insert into tblVault (strKey,strValue) values('{}','{}');".format(
+        strKey, StringEncryptor(strPass, strValue))
+    objSQLite.execute(strSQL)
+    objSQLite.commit()
+    if objSQLite.total_changes == 1:
+      return True
+    else:
+      return False
+
+def AddItem(strKey, strValue, bConf=True, strPass=""):
+  """
+  Function that calls the right function to encrypt and store the value depend on selected store
+  Parameters:
+    strKey: The name of the key part of the key value pair
+    strValue: The value part of the key value pair
+    bConf: Optional, defaults to True. If key updates should be confirmed
+    strPass: Optional, defaults to blank string. Use a password other than 
+              that validated by login function
+  Returns:
+    True/false boolean to indicate if the was successful or not
+  """
+  if strStore.lower() == "files":
+    return AddFileItem(strKey, strValue, bConf, strPass)
+  elif strStore.lower() == "redis":
+    return AddRedisItem(strKey, strValue, bConf, strPass)
+  elif strStore.lower() == "sqlite":
+    return AddSQLItem(strKey, strValue, bConf, strPass)
+
+def FetchFileItem(strKey):
+  """
+  Function that fetches the specified key from the file store and decrypts it.
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    Either the decrypted string or boolean false to indicate a failure
+  """
+  strFileIn = strVault + strKey
+  tmpResponse = GetFileHandle(strFileIn, "r")
+  if isinstance(tmpResponse, str):
+    print(tmpResponse)
+    return False
+  else:
+    objFileIn = tmpResponse
+    strValue = objFileIn.read()
+    objFileIn.close()
+    try:
+      return StringDecryptor(strPWD, strValue)
+    except ValueError:
+      print("Failed to decrypt the vault")
+      return False
+
+def FetchRedisItem(strKey):
+  """
+  Function that fetches the specified key from Redis and decrypts it.
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    Either the decrypted string or boolean false to indicate a failure
+  """
+  strValue = objRedis.get(strKey)
+  strValue = strValue.decode("utf-8")
+  try:
+    return StringDecryptor(strPWD, strValue)
+  except ValueError:
+    print("Failed to decrypt the vault")
+    return False
+
+def FetchSQLItem(strKey):
+  """
+  Function that fetches the specified key from database and decrypts it.
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    Either the decrypted string or boolean false to indicate a failure
+  """
+  strSQLQuery = "select * from tblVault where strKey = '{}';".format(strKey)
+  try:
+    dbCursor = objSQLite.execute(strSQLQuery)
+    lstRow = dbCursor.fetchone()
+    strValue = lstRow[0]
+  except DBError as err:
+    print("Failed to query to SQLite database: {}".format(err))
+    sys.exit(9)
+  try:
+    return StringDecryptor(strPWD, strValue)
+  except ValueError:
+    print("Failed to decrypt the vault")
+    return False
+
+def FetchItem(strKey):
+  """
+  Function that calls the right function to fetch and decrypt depend on selected store
+  Parameters:
+    strKey: The name of the key to be fetched
+  Returns:
+    Either the decrypted string or boolean false to indicate a failure
+  """
+  if strStore.lower() == "files":
+    return FetchFileItem(strKey)
+  elif strStore.lower() == "redis":
+    return FetchRedisItem(strKey)
+  elif strStore.lower() == "sqlite":
+    return FetchSQLItem(strKey)
+
+def DelItem(strKey):
+  """
+  Function that removes a key from the datastore
+  Parameters:
+    strKey: The name of the key part of the key value pair
+  Returns:
+    Nothing
+  """
+  if strStore.lower() == "files":
+    if strKey != "":
+      strFileName = strVault + strKey
+      try:
+        os.remove(strFileName)
+      except PermissionError:
+        print("unable to delete file {}, "
+              "permission denied.".format(strFileName))
+      except FileNotFoundError:
+        print("unable to delete file {}, "
+              "Issue with the path".format(strFileName))
+  elif strStore.lower() == "redis":
+    objRedis.delete(strKey)
+
+def ResetStore():
+  """
+  Function that completely resets the choosen store to a blank slate
+  Parameters:
+    none
+  Returns:
+    Nothing
+  """
+  if strStore.lower() == "files":
+    try:
+      shutil.rmtree(strVault)
+    except PermissionError:
+      print("unable to delete file {}, "
+            "permission denied.".format(strVault))
+    except FileNotFoundError:
+      print("unable to delete file {}, "
+            "Issue with the path".format(strVault))
+    except OSError as err:
+      print("unable to delete {}, "
+            "OS Error {}".format(strVault, err))
+
+  elif strStore.lower() == "redis":
+    objRedis.flushdb()
 
 def main():
   """
@@ -756,7 +867,7 @@ def main():
   strFormat = "\x1b[1;{}m".format(iColorID)
   strFormatReset = "\x1b[0;0m"
 
-  strVault = FetchEnv("VAULT")
+  strVault = ""
   if len(lstSysArg) > 1:
     if lstSysArg[1][:5].lower() == "vault":
       strVault = lstSysArg[1][6:]
