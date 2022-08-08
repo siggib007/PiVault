@@ -628,10 +628,7 @@ def AddSQLItem(strKey, strValue, bConf=True, strPass=""):
           StringEncryptor(strPass, strValue), strKey)
       objSQLite.execute(strSQL)
       objSQLite.commit()
-      if objSQLite.total_changes == 1:
-        return True
-      else:
-        return False
+      return True
     else:
       return False
   else:
@@ -714,7 +711,7 @@ def FetchSQLItem(strKey):
   try:
     dbCursor = objSQLite.execute(strSQLQuery)
     lstRow = dbCursor.fetchone()
-    strValue = lstRow[0]
+    strValue = lstRow[1]
   except DBError as err:
     print("Failed to query to SQLite database: {}".format(err))
     sys.exit(9)

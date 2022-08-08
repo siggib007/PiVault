@@ -14,9 +14,6 @@
       "args": ["add","foo","bar"],
       "env": 
       {
-        "TEST_VAR": "foo",
-        "VAULT": "/temp/Vaultb",
-        "HIDEINPUT": "true",
         "DOPPLER_ENV": "1"
       }
     }
