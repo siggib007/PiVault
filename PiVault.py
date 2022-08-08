@@ -288,11 +288,11 @@ def Fetch2Clip(strKey):
 def ShowTOTP(strKey):
   """
   Function that fetches the specified key from the datastore and decrypts it.
-  Decrypted value is then placed on the clipboard and not shown.
+  Decrypted value is then used to generate a time based one time token.
   Parameters:
     strKey: The name of the key to be fetched
   Returns:
-    nothing
+    A string with the generated token, or bolean false on failure
   """
   strB32Pattern = "[^A-Z2-7]"
   strValue = FetchItem(strKey)
