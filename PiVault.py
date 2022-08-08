@@ -52,6 +52,7 @@ finally:
 # Global constants
 bDefHide = False
 strDefValueColor = "red"
+strDefStore = "files"
 strDefVault = "VaultData"
 strCheckValue = "This is a simple secrets vault"
 strCheckFile = "VaultInit"
@@ -59,18 +60,18 @@ bLoggedIn = False
 
 #functions 
 
-def StringEncryptor(strkey, strData, encode=True):
+def StringEncryptor(strPWD, strData, encode=True):
   """
   This handles encrypting a string using AES.
   Adopted from https://stackoverflow.com/a/44212550/8549454
   Parameters:
-    strkey: Simple string with encryption password
+    strPWD: Simple string with encryption password
     strData: Simple string with the data to be encrypted
     encode: Optional, defaults to true. A boolean to indicate the return should be Base64 encoded.
   Returns:
     Encrypted string, either raw or base64 encoded depending on the encode parameter
   """
-  bKey = bytes(strkey, "UTF-8")
+  bKey = bytes(strPWD, "UTF-8")
   bData = bytes(strData, "UTF-8")  # use SHA-256 over our key to get a proper-sized AES key
   hKey = SHA256.new(bKey).digest()
   IV = Random.new().read(AES.block_size)  # generate IV
@@ -80,12 +81,12 @@ def StringEncryptor(strkey, strData, encode=True):
   oEncrypted = IV + objEncryptor.encrypt(bData)
   return base64.b64encode(oEncrypted).decode("UTF-8") if encode else oEncrypted
 
-def StringDecryptor(strkey, strData, decode=True):
+def StringDecryptor(strPWD, strData, decode=True):
   """
   This handles decrypting a string encrypted with AES
   Adopted from https://stackoverflow.com/a/44212550/8549454
   Parameters:
-    strkey: Simple string with encryption password
+    strPWD: Simple string with encryption password
     strData: Simple string with the encrypted data
     encode: Optional, defaults to true. A boolean to indicate if the data is Base64 encoded.
   Returns:
@@ -93,7 +94,7 @@ def StringDecryptor(strkey, strData, decode=True):
   """
   if decode:
       strData = base64.b64decode(strData.encode("UTF-8"))
-  bKey = bytes(strkey, "UTF-8")
+  bKey = bytes(strPWD, "UTF-8")
   hKey = SHA256.new(bKey).digest()
   IV = strData[:AES.block_size]  # extract the IV from the beginning
   objEncryptor = AES.new(hKey, AES.MODE_CBC, IV)
@@ -179,6 +180,58 @@ def DefineColors():
   dictColor["lightblue"] = "94"
   dictColor["pink"] = "95"
   dictColor["lightcyan"] = "96"
+
+def SQLOp(strCmd, strKey="", strValue=""):
+  """
+  This handles all database operations
+  Parameters:
+    strCmd: Which operation is needed
+    strkey: Optional, defaults to an empty string. The name of the key part of the key value pair
+    strValue: Optional, defaults to an empty string. The value part of the key value pair.
+  Returns:
+    Decrypted clear text simple string
+  """
+  if strCmd == "Create":
+    strSQLTable = "CREATE TABLE IF NOT EXISTS tblVault(strkey text not null, strValue text not null);"
+    strSQLIndex = "CREATE UNIQUE INDEX IF NOT EXISTS idxKey on tblVault (strKey);"
+    try:
+      objSQLite = sqlite3.connect(strVault)
+      objSQLite.execute(strSQLTable)
+      objSQLite.execute(strSQLIndex)
+      print("Connecto to SQLite {}, table created and indexed".format(sqlite3.version))
+      return True
+    except DBError as err:
+      print("SQLite failed to create table or index: {}".format(err))
+      return False
+  elif strCmd == "select":
+    strSQLQuery = "select * from tblVault"
+    if strKey != "":
+      strSQLQuery += " where strKey = '{}';".format(strKey)
+    try:
+      dbCursor = objSQLite.execute(strSQLQuery)
+      return dbCursor.fetchall()
+    except DBError as err:
+      print("Failed to query to SQLite database: {}".format(err))
+      return False
+  elif strCmd == "update":
+    strSQL = "update tblVault set strValue = '{}' where strKey = '{}';".format(strValue, strKey)
+    objSQLite.execute(strSQL)
+    objSQLite.commit()
+    return True
+  elif strCmd == "insert":
+    strSQL = "insert into tblVault (strKey,strValue) values('{}','{}');".format(strValue, strKey)
+    objSQLite.execute(strSQL)
+    objSQLite.commit()
+    return True
+  elif strCmd == "delete":
+    strSQLQuery = "delete from tblVault"
+    if strKey != "":
+      strSQLQuery += " where strKey = '{}';".format(strKey)
+    objSQLite.execute(strSQL)
+    objSQLite.commit()
+    return True
+  else:
+    print("Unsupported SQL operation: {}".format(strCmd))
 
 def UserLogin():
   """
@@ -487,15 +540,16 @@ def VaultInit():
     if strVault[-1:] == "/":
       strVault = strVault[:-1]
     objSQLite = None
-    strSQLTable = "CREATE TABLE IF NOT EXISTS tblVault(strkey text not null, strValue text not null);"
-    strSQLIndex = "CREATE UNIQUE INDEX IF NOT EXISTS idxKey on tblVault (strKey);"
     try:
       objSQLite = sqlite3.connect(strVault)
-      objSQLite.execute(strSQLTable)
-      objSQLite.execute(strSQLIndex)
-      print("Connecto to SQLite {}, table created and indexed".format(sqlite3.version))
+      print("Connecto to SQLite {}".format(sqlite3.version))
     except DBError as err:
       print("SQLite database operation failed: {}".format(err))
+      sys.exit(9)
+    if SQLOp("Create"):
+      print("Table and Index created")
+    else:
+      print("Failed to create table or index")
       sys.exit(9)
   else:
     print("Unsupported store {}".format(strStore))
@@ -523,14 +577,13 @@ def ListCount():
       else:
         lstVault.append(strItem)
   elif strStore.lower() == "sqlite":
-    strSQLQuery = "select * from tblVault;"
-    try:
-      dbCursor = objSQLite.execute(strSQLQuery)
-      lstVault = []
-      for lstRow in dbCursor:
-        lstVault.append(lstRow[0])
-    except DBError as err:
-      print("Failed to query to SQLite database: {}".format(err))
+    lstResult = SQLOp("select")
+    lstVault = []
+    if isinstance(lstResult,list):
+      for Temp in lstResult:
+        lstVault.append(Temp[0])
+    else:
+      print("Failed to list out the vault")
       sys.exit(9)
 
   if strCheckFile in lstVault:
@@ -624,22 +677,11 @@ def AddSQLItem(strKey, strValue, bConf=True, strPass=""):
     else:
       strResp = "yes"
     if strResp.lower() == "yes":
-      strSQL = "update tblVault set strValue = '{}' where strKey = '{}';".format(
-          StringEncryptor(strPass, strValue), strKey)
-      objSQLite.execute(strSQL)
-      objSQLite.commit()
-      return True
+      return SQLOp("update", strKey, StringEncryptor(strPass, strValue))
     else:
       return False
   else:
-    strSQL = "insert into tblVault (strKey,strValue) values('{}','{}');".format(
-        strKey, StringEncryptor(strPass, strValue))
-    objSQLite.execute(strSQL)
-    objSQLite.commit()
-    if objSQLite.total_changes == 1:
-      return True
-    else:
-      return False
+    return SQLOp("insert", strKey, StringEncryptor(strPass, strValue))
 
 def AddItem(strKey, strValue, bConf=True, strPass=""):
   """
@@ -707,14 +749,8 @@ def FetchSQLItem(strKey):
   Returns:
     Either the decrypted string or boolean false to indicate a failure
   """
-  strSQLQuery = "select * from tblVault where strKey = '{}';".format(strKey)
-  try:
-    dbCursor = objSQLite.execute(strSQLQuery)
-    lstRow = dbCursor.fetchone()
-    strValue = lstRow[1]
-  except DBError as err:
-    print("Failed to query to SQLite database: {}".format(err))
-    sys.exit(9)
+  lstResult = SQLOp("select",strKey)
+  strValue = lstResult[0][0]
   try:
     return StringDecryptor(strPWD, strValue)
   except ValueError:
@@ -757,6 +793,8 @@ def DelItem(strKey):
               "Issue with the path".format(strFileName))
   elif strStore.lower() == "redis":
     objRedis.delete(strKey)
+  elif strStore.lower() == "sqlite":
+    return SQLOp("delete",strKey)
 
 def ResetStore():
   """
@@ -781,6 +819,8 @@ def ResetStore():
 
   elif strStore.lower() == "redis":
     objRedis.flushdb()
+  elif strStore.lower() == "sqlite":
+    return SQLOp("delete")
 
 def main():
   """
