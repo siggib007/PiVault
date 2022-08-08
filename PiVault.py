@@ -8,7 +8,7 @@ Copyright 2022
 
 Encrypt/decrypt functions copied from https://stackoverflow.com/a/44212550/8549454
 
-Following packages need to be installed
+Following packages need to be installed for base functionality
 pip install pycryptodome
 pip install maskpass
 
