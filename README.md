@@ -1,9 +1,18 @@
 # PiVault
 This is a very simply CLI based secrets manager written in python. This has been tested to my knowledge on 3.6, 3.7 and 3.10, and on Windows 10, Windows 11, ubuntu 18, ubuntu 20, OpenBSD and MacOS. More testing is appreciated and if you find issues or have a feature request please log it under the issue tab.
 
-When I say simple you can store key/value pair, fetch a value based on a key and display it, and fetch a value based on a key and place it on the clipboard. That's pretty much it, that's how simple it is. The clipboard feature works across SSH if you have X11 setup properly on both the client and the server. If you have xclip installed and can do all sorts of X11 stuff, then the clipboard should work across the SSH connection. Otherwise the clipboard feature is unavailable. You'll get a message when you start the script whether clipboard feature is working or not. 
+Features include:
 
-Everything is a key value pair where the key is public but the value is secret. The value is encrypted using AES-256 in MODE_CBC, if you don't know what that means, just know that is one of the best encryption methods available when this was written in August of 2022. When used with a strong, un-guessable, password it has not been cracked as of this writing.  After the value is encrypted it is base64 encoded and stored under the key in the chosen storage engine. At the time of this writing I've included support for SQLite, filesystem and Redis as a storage engine, however I've got plan to add various other database support. I also plan to offer PGP encryption as well. This ReadMe will be updated as I complete these options. You can see more details about my plan on the issue tab.
+- Add item to the store or update it if it already exists
+- Fetch item from the store, either display it or put the value on the clipboard
+- List the keys (names) of all items in the store
+- Remove an item from the store
+- Re-initialize the store and remove everything in it
+- Generate a Time-based One Time Passcode (TOTP), aka Google Authenticator, based on a secret stored in the store
+
+The clipboard feature works across SSH if you have X11 setup properly on both the client and the server, have xclip installed, etc. If you can do all sorts of X11 stuff, then the clipboard should work across the SSH connection. Otherwise the clipboard feature is unavailable on SSH or remote sessions where there is no clipboard support. You'll get a message when you start the script whether clipboard feature is working or not. 
+
+Everything is a key value pair where the key (aka name) is public but the value is secret. The value is encrypted using AES-256 in MODE_CBC, if you don't know what that means, just know that is one of the best encryption methods available when this was written in August of 2022. When used with a strong, un-guessable, password it has not been cracked as of this writing.  After the value is encrypted it is base64 encoded and stored under the key in the chosen storage engine. At the time of this writing I've included support for SQLite, filesystem and Redis as a storage engine, however I've got plan to add various other database support. I also plan to offer PGP encryption as well. This ReadMe will be updated as I complete these options. You can see more details about my plans on the issue tab.
 
 For the filesystem storage engine each key value pair is stored in its own file in a specified folder, where the key is the filename and the content of the file is the encrypted base64 encoded blob. If no folder path is provided then a folder called `VaultData` is created in the same directory as the script. You can provide an alternative path in one of two ways:
 
@@ -18,7 +27,7 @@ Speaking of passwords and environment variables, you can define an environment v
 
 When you fetch a stored value, the decrypted string is printed in red font by default. You can change this by defining an environment variable called VALUECOLOR and setting it to one these colors: black, red, green, orange, blue, purple, cyan, lightgrey, darkgrey, lightred, lightgreen, yellow, lightblue, pink, lightcyan.
 
-Check out `Environment Variables.txt` for full details of possible environment variables and reach out if you have questions.
+Check out `Environment Variables.txt` for full details of possible environment variables, for each storage engine and reach out if you have questions.
 
 If you initiate the script without any arguments, except maybe the vault argument, you will be dropped into an interactive shell. You can also accomplish everything by using just command arguments. 
 
@@ -33,6 +42,7 @@ list : List out all keys
 fetch : fetch a specified key
 clippy : put specified key value on the clipboard
 passwd : Change the password
+totp : Displays TOTP code for the secret stored at the specified key
 ```
 
 Here are some examples:
@@ -60,3 +70,9 @@ python3 PiVault.py vault=MyVault add testkey17 this is a key value for new vault
 ```
 
 This creates a new entry called testkey17 and encrypts the string "this is a key value for new vault" and stores it in a vault called `MyVault` in the current directory
+
+```
+python3 PiVault.py totp otpath
+```
+
+This decrypts entry otpath and uses it to generate a TOTP (Google Auth compatible) and displays it in the console

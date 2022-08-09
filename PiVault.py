@@ -157,7 +157,7 @@ def DefineMenu():
   dictMenu["reset"]  = "Resets your stores so it is completely uninitialized"
   dictMenu["list"]   = "List out all keys"
   dictMenu["fetch"]  = "fetch a specified key"
-  dictMenu["clippy"] = "put specified key value on the clipboard"
+  dictMenu["clip"]   = "put specified key value on the clipboard"
   dictMenu["passwd"] = "Change the password"
   dictMenu["totp"]   = "Displays TOTP code for the secret stored at the specified key"
 
@@ -350,11 +350,11 @@ def DisplayHelp():
   Returns:
     none
   """
-  lstDontShow = ["list", "fetch", "clippy", "del", "passwd","totp"]
+  lstDontShow = ["list", "fetch", "clip", "del", "passwd","totp"]
   print("\nHere are the commands you can use:")
   for strItem in dictMenu:
     if len(lstVault) > 1:
-      if strItem != "clippy" or bClippy:
+      if strItem != "clip" or bClippy:
         print("{} : {}".format(strItem, dictMenu[strItem]))
       #if strItem != "totp" or bTOTP:
       #  print("{} : {}".format(strItem, dictMenu[strItem]))
@@ -477,9 +477,9 @@ def ProcessCMD(objCmd):
     strKey = input("Please type yes to confirm, all other input will considered as no: ")
     if strKey.lower() == "yes":
       ResetStore()
-  elif strCmd == "clippy":
+  elif strCmd[:4] == "clip":
     if not bClippy:
-      print("Clippy is not supported on your system")
+      print("Clip is not supported on your system")
       return
     bLogin = True
     if not bLoggedIn:
@@ -507,6 +507,9 @@ def ProcessCMD(objCmd):
       strResponse = ShowTOTP(strKey)
       if isinstance(strResponse,str):
         print("Your code is: {}".format(strResponse))
+        if bClippy:
+          pyperclip.copy(strResponse)
+          print("Your code is on the clipboard as well")
       else:
         print("failed to generate code")
   else:
@@ -540,6 +543,7 @@ def VaultInit():
   global objSQLite
 
   if strStore.lower() == "files":
+    print("Using filsystem store")
     if strVault == "":
       print("No command argument vault specifier, checking environment variable")
       strVault = FetchEnv("VAULT")
@@ -560,6 +564,7 @@ def VaultInit():
       print(
           "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
   elif strStore.lower() == "redis":
+    print("Using redis store")
     try:
       import redis
     except ImportError:
@@ -571,6 +576,10 @@ def VaultInit():
     iRedisPort = FetchEnv("PORT")
     iRedisDB = FetchEnv("DB")
     strDBpwd = FetchEnv("DBPWD")
+    lstHost = strRedisHost.split(".")
+    print("Connecting to redis server at ...{}".format(".".join(lstHost[-3:])))
+    if strDBpwd != "":
+      print("with password that starts with {}".format(strDBpwd[:2]))
     objRedis = redis.Redis(
         host=strRedisHost, port=iRedisPort, db=iRedisDB, password=strDBpwd)
   elif strStore.lower() == "sqlite":
@@ -589,6 +598,11 @@ def VaultInit():
     strVault = strVault.replace("\\", "/")
     if strVault[-1:] == "/":
       strVault = strVault[:-1]
+    lstPath = os.path.split(strVault)
+    if not os.path.exists(lstPath[0]):
+      os.makedirs(lstPath[0])
+      print(
+          "\nPath '{0}' for vault didn't exists, so I create it!\n".format(lstPath[0]))
     objSQLite = None
     try:
       objSQLite = sqlite3.connect(strVault)

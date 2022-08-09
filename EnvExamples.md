@@ -2,9 +2,11 @@
 
 ## Filesystem
 
+All variables are optional. Vault default is the working directory. If PWD is absent, you will be prompted for it. All other defaults are as shown
+
 ```
-CLIPPYENABLE: 'true'
-HIDEINPUT: 'true'
+CLIPPYENABLE: 'true' 
+HIDEINPUT: 'true' 
 PWD: SuperStrongsecretPWD!
 STORE: files
 VALUECOLOR: blue
@@ -12,6 +14,8 @@ VAULT: ~/PieVault
 ```
 
 ## SQLite
+
+Only required variable is store. Vault default is the working directory. If PWD is absent, you will be prompted for it. All other defaults are as shown
 
 ```
 CLIPPYENABLE: 'true'
@@ -25,15 +29,15 @@ VAULT: ~/PieVault
 ## Redis
 
 ```
-CLIPPYENABLE: 'true'
-HIDEINPUT: 'true'
+CLIPPYENABLE: 'true' # optional defaults to true
+HIDEINPUT: 'true' # optional defaults to true
 PWD: SuperStrongsecretPWD!
-STORE: redis
-VALUECOLOR: blue
-DB: '0'
-HIDEINPUT: 'true'
-HOST: localhost
-PORT: '6379'
-DBPWD: SecretDBPassword   #If configured on your Redis instance
+STORE: redis #required
+VALUECOLOR: blue # Optional defaults to red
+DB: '0' #required
+HIDEINPUT: 'true' # Optional, defaults to false
+HOST: localhost # required
+PORT: '6379' # required
+DBPWD: SecretDBPassword   # Required if configured on your Redis instance, otherwise it must be left blank or not configured
 ```
 
