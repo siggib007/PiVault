@@ -615,13 +615,12 @@ def VaultInit():
           "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
   elif strStore.lower() == "redis":
     print("Using redis store")
-    try:
-      import redis
-    except ImportError:
-      subprocess.check_call(
-          [sys.executable, "-m", "pip", "install", 'redis'])
-    finally:
-      import redis
+    if not CheckDependency("redis")["success"]:
+      print("failed to install redis. Please pip install redis prior to using redis store.")
+    else:
+      print("redis module is good")
+
+    import redis
     strRedisHost = FetchEnv("HOST")
     iRedisPort = FetchEnv("PORT")
     iRedisDB = FetchEnv("DB")
@@ -988,13 +987,12 @@ def main():
   if strEnableClippy.lower() == "false":
     bClippy = False
   else:
-    try:
-      import pyperclip
-    except ImportError:
-      subprocess.check_call(
-          [sys.executable, "-m", "pip", "install", 'pyperclip'])
-    finally:
-      import pyperclip
+    if not CheckDependency("pyperclip")["success"]:
+      print("failed to install pyperclip. Please pip install pyperclip or disable clipboard support.")
+    else:
+      print("pyperclip module is good")
+
+    import pyperclip
     try:
       pyperclip.paste()
       print("Clipboard seems good so turning that on")
@@ -1009,13 +1007,12 @@ def main():
     bTOTP = False
     print("Per environment variable, TOTP function has been turned off")
   else:
-    try:
-      import pyotp
-    except ImportError:
-      subprocess.check_call(
-          [sys.executable, "-m", "pip", "install", 'pyotp'])
-    finally:
-      import pyotp
+    if not CheckDependency("pyotp")["success"]:
+      print("failed to install pyotp. Please pip install pyotp or disable TOTP support.")
+    else:
+      print("pyotp module is good")
+
+    import pyotp
 
   strStore = FetchEnv("STORE")
   strPWD = FetchEnv("VAULTPWD")
