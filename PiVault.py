@@ -31,28 +31,7 @@ import base64
 import sqlite3
 import re
 from sqlite3 import Error as DBError 
-from xml.dom.expatbuilder import InternalSubsetExtractor
 
-try:
-  from Crypto.Cipher import AES
-  from Crypto.Hash import SHA256
-  from Crypto import Random
-except ImportError:
-  subprocess.check_call(
-      [sys.executable, "-m", "pip", "install", 'pycryptodome'])
-finally:
-  from Crypto.Cipher import AES
-  from Crypto.Hash import SHA256
-  from Crypto import Random
-try:
-  import maskpass
-except ImportError:
-  subprocess.check_call(
-      [sys.executable, "-m", "pip", "install", 'maskpass'])
-finally:
-  import maskpass
-
-# End imports
 
 # Global constants
 bDefHide = False
@@ -62,8 +41,79 @@ strDefVault = "VaultData"
 strCheckValue = "This is a simple secrets vault"
 strCheckFile = "VaultInit"
 bLoggedIn = False
-
+dictComponents = {}
 #functions 
+
+def CheckDependency(Module):
+  """
+  Function that installs missing depedencies
+  Parameters:
+    Module : The name of the module that should be installed
+  Returns:
+    dictionary object without output from the installation.
+      if the module needed to be installed
+        code: Return code from the installation
+        stdout: output from the installation
+        stderr: errors from the installation
+        args: list object with the arguments used during installation
+        success: true/false boolean indicating success.
+      if module was already installed so no action was taken
+        code: -5
+        stdout: Simple String: {module} version {x.y.z} already installed
+        stderr: Nonetype
+        args: module name as passed in
+        success: True as a boolean
+  """
+  global dictComponents
+  
+  dictReturn = {}
+  strModule = Module
+  if len(dictComponents) == 0:
+    lstOutput = subprocess.run(
+      [sys.executable, "-m", "pip", "list"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    lstLines = lstOutput.stdout.decode("utf-8").splitlines()
+    for strLine in lstLines:
+      lstParts = strLine.split()
+      dictComponents[lstParts[0].lower()] = lstParts[1]
+
+  if strModule.lower() not in dictComponents:
+    lstOutput = subprocess.run(
+        [sys.executable, "-m", "pip", "install", strModule], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    dictReturn["code"] = lstOutput.returncode
+    dictReturn["stdout"] = lstOutput.stdout.decode("utf-8")
+    dictReturn["stderr"] = lstOutput.stderr.decode("utf-8")
+    dictReturn["args"] = lstOutput.args
+    if lstOutput.returncode == 0:
+      dictReturn["success"] = True
+    else:
+      dictReturn["success"] = False
+    return dictReturn
+  else:
+    dictReturn["code"] = -5
+    dictReturn["stdout"] = "{} version {} already installed".format(
+        strModule, dictComponents[strModule.lower()])
+    dictReturn["stderr"] = None
+    dictReturn["args"] = strModule
+    dictReturn["success"] = True
+    return dictReturn
+
+if not CheckDependency("pycryptodome")["success"]:
+  print ("failed to install pycryptodome. Please pip install pycryptodome as that is needed for all the crypto work.")
+else:
+  print("Crypto module is good")
+
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from Crypto import Random
+
+if not CheckDependency("maskpass")["success"]:
+  print("failed to install maskpass. Please pip install maskpass to be able to mask the password input.")
+else:
+  print("maskpass module is good")
+
+import maskpass
+
+# End imports
 
 def StringEncryptor(strPWD, strData, encode=True):
   """
@@ -968,7 +1018,7 @@ def main():
       import pyotp
 
   strStore = FetchEnv("STORE")
-  strPWD = FetchEnv("PWD")
+  strPWD = FetchEnv("VAULTPWD")
   strHideIn = FetchEnv("HIDEINPUT")
   strValueColor = FetchEnv("VALUECOLOR")
   if strStore == "":
