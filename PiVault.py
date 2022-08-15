@@ -38,7 +38,7 @@ strDefStore = "files"
 strDefVault = "VaultData"
 strCheckValue = "This is a simple secrets vault"
 strCheckFile = "VaultInit"
-lstDBTypes = ["sqlite", "mysql","postgres"]
+lstDBTypes = ["sqlite", "mysql", "postgres", "mssql"]
 bLoggedIn = False
 dictComponents = {}
 #functions 
@@ -356,8 +356,10 @@ def SQLOp(strCmd, strKey="", strValue=""):
         print("Query complete.")
         if isinstance(dbCursor, str):
           print("Failed to create table on MS SQL. Results is only the following string: {}".format(dbCursor))
+          return False
       else:
         print("Table already exists")
+        return True
     else:
       dbCursor = DBQuery(SQL=strTableCreate, dbConn=dbConn)
       if isinstance(dbCursor, str):
