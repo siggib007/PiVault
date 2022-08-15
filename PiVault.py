@@ -28,9 +28,7 @@ import time
 import sys
 import subprocess
 import base64
-import sqlite3
 import re
-from sqlite3 import Error as DBError 
 
 
 # Global constants
@@ -40,6 +38,7 @@ strDefStore = "files"
 strDefVault = "VaultData"
 strCheckValue = "This is a simple secrets vault"
 strCheckFile = "VaultInit"
+lstDBTypes = ["sqlite", "mysql","postgres"]
 bLoggedIn = False
 dictComponents = {}
 #functions 
@@ -99,8 +98,6 @@ def CheckDependency(Module):
 
 if not CheckDependency("pycryptodome")["success"]:
   print ("failed to install pycryptodome. Please pip install pycryptodome as that is needed for all the crypto work.")
-else:
-  print("Crypto module is good")
 
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
@@ -108,8 +105,6 @@ from Crypto import Random
 
 if not CheckDependency("maskpass")["success"]:
   print("failed to install maskpass. Please pip install maskpass to be able to mask the password input.")
-else:
-  print("maskpass module is good")
 
 import maskpass
 
@@ -171,12 +166,14 @@ def DBConnect(*, DBType, Server, DBUser="", DBPWD="", Database=""):
                       " UID={};"
                       " PWD={};".format(strServer, strInitialDB, strDBUser, strDBPWD))
       return dbo.connect(strConnect)
+    
     elif strDBType == "mysql":
       if not CheckDependency("pymysql")["success"]:
         return "failed to install pymysql. Please pip install pymysql before using mySQL option."
       import pymysql as dbo
       from pymysql import err as dboErr
       return dbo.connect(host=strServer, user=strDBUser, password=strDBPWD, db=strInitialDB)
+    
     elif strDBType == "postgres":
       if not CheckDependency("psycopg2-binary")["success"]:
         return "failed to install psycopg2-binary. Please pip install psycopg2-binary before using PostgreSQL option."
@@ -647,7 +644,11 @@ def ProcessCMD(objCmd):
       print("{}PLEASE NOTE THIS ACTION IS IRREVERSABLE AND CARRIES NO CONFIRMATION{}".format(
           strRed, strFormatReset))
       strKey = input("Please provide name of key you wish to remove: ")
-    DelItem(strKey)
+    if DelItem(strKey):
+      print("Successfully deleted key {}".format(strKey))
+      ListCount()
+    else:
+      print("Failed to deleted key {}".format(strKey))
   elif strCmd == "reset":
     ListItems()
     strRed = "\x1b[1;{}m".format(31)
@@ -655,7 +656,11 @@ def ProcessCMD(objCmd):
         strRed, strFormatReset))
     strKey = input("Please type yes to confirm, all other input will considered as no: ")
     if strKey.lower() == "yes":
-      ResetStore()
+      if ResetStore():
+        print("Successfully reset the store")
+      else:
+        print("Failed to reset the store")
+
   elif strCmd[:4] == "clip":
     if not bClippy:
       print("Clip is not supported on your system")
@@ -720,6 +725,8 @@ def VaultInit():
   global objRedis
   global strVault
   global dbConn
+  lstSQLDB = lstDBTypes.copy()
+  lstSQLDB.remove("sqlite")
 
   if strStore.lower() == "files":
     print("Using filsystem store")
@@ -747,8 +754,6 @@ def VaultInit():
     print("Using redis store")
     if not CheckDependency("redis")["success"]:
       print("failed to install redis. Please pip install redis prior to using redis store.")
-    else:
-      print("redis module is good")
     import redis
     strRedisHost = FetchEnv("HOST")
     iRedisPort = FetchEnv("PORT")
@@ -761,6 +766,23 @@ def VaultInit():
     objRedis = redis.Redis(
         host=strRedisHost, port=iRedisPort, db=iRedisDB, password=strDBpwd)
   
+  elif strStore.lower() in lstSQLDB:
+    strServer = FetchEnv("HOST")
+    strInitialDB = FetchEnv("DB")
+    strDBUser = FetchEnv("DBUSER")
+    strDBpwd = FetchEnv("DBPWD")
+    dbConn = DBConnect(DBType=strStore, Server=strServer,
+                       DBUser=strDBUser, DBPWD=strDBpwd, Database=strInitialDB)
+    if isinstance(dbConn, str):
+      print("Failed to connect to {} at {}. Error: {}".format(
+          strStore, strVault, dbConn))
+      sys.exit(9)
+    else:
+      print("Connection to {} at {} successful.".format(strStore, strServer))
+    if not SQLOp("Create"):
+      print("Failed to create table")
+      sys.exit(9)
+
   elif strStore.lower() == "sqlite":
     if strVault == "":
       print("No command argument vault specifier, checking environment variable")
@@ -781,9 +803,9 @@ def VaultInit():
     else:
       print("Connection to {} at {} successful.".format(strStore, strVault))
     if SQLOp("Create"):
-      print("Table and Index created")
+      print("Table created")
     else:
-      print("Failed to create table or index")
+      print("Failed to create table")
       sys.exit(9)
   
   else:
@@ -815,15 +837,17 @@ def ListCount():
         lstVault.append(strItem.decode("UTF-8"))
       else:
         lstVault.append(strItem)
-  elif strStore.lower() == "sqlite":
+  elif strStore.lower() in lstDBTypes:
     lstResult = SQLOp("select")
     lstVault = []
-    if isinstance(lstResult,list):
+    if isinstance(lstResult,(list,tuple)):
       for Temp in lstResult:
         lstVault.append(Temp[0])
     else:
-      print("Failed to list out the vault")
+      print("Failed to list out the vault. Result is type {} with value of {}".format(type(lstResult),lstResult))
       sys.exit(9)
+  else:
+    print("Unknown store type {} in ListCount".format(strStore))
 
   if strCheckFile in lstVault:
     iVaultLen = len(lstVault) - 1
@@ -938,8 +962,11 @@ def AddItem(strKey, strValue, bConf=True, strPass=""):
     return AddFileItem(strKey, strValue, bConf, strPass)
   elif strStore.lower() == "redis":
     return AddRedisItem(strKey, strValue, bConf, strPass)
-  elif strStore.lower() == "sqlite":
+  elif strStore.lower() in lstDBTypes:
     return AddSQLItem(strKey, strValue, bConf, strPass)
+  else:
+    print ("Unknown store {}".format(strStore))
+    return None
 
 def FetchFileItem(strKey):
   """
@@ -1008,8 +1035,10 @@ def FetchItem(strKey):
     return FetchFileItem(strKey)
   elif strStore.lower() == "redis":
     return FetchRedisItem(strKey)
-  elif strStore.lower() == "sqlite":
+  elif strStore.lower() in lstDBTypes:
     return FetchSQLItem(strKey)
+  else:
+    return "Unknown store {}".format(strStore)
 
 def DelItem(strKey):
   """
@@ -1032,8 +1061,11 @@ def DelItem(strKey):
               "Issue with the path".format(strFileName))
   elif strStore.lower() == "redis":
     objRedis.delete(strKey)
-  elif strStore.lower() == "sqlite":
+  elif strStore.lower() in lstDBTypes:
     return SQLOp("delete",strKey)
+  else:
+    print("Unknown store {}".format(strStore))
+    return False
 
 def ResetStore():
   """
@@ -1058,8 +1090,11 @@ def ResetStore():
 
   elif strStore.lower() == "redis":
     objRedis.flushdb()
-  elif strStore.lower() == "sqlite":
+  elif strStore.lower() in lstDBTypes:
     return SQLOp("delete")
+  else:
+    print("Unknown store {}".format(strStore))
+    return None
 
 def main():
   """
@@ -1111,8 +1146,6 @@ def main():
   else:
     if not CheckDependency("pyperclip")["success"]:
       print("failed to install pyperclip. Please pip install pyperclip or disable clipboard support.")
-    else:
-      print("pyperclip module is good")
 
     import pyperclip
     try:
@@ -1131,8 +1164,6 @@ def main():
   else:
     if not CheckDependency("pyotp")["success"]:
       print("failed to install pyotp. Please pip install pyotp or disable TOTP support.")
-    else:
-      print("pyotp module is good")
 
     import pyotp
 
