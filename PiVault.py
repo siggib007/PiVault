@@ -115,6 +115,101 @@ import maskpass
 
 # End imports
 
+def DBConnect(*, DBType, Server, DBUser="", DBPWD="", Database=""):
+  """
+  Function that handles establishing a connection to a specified database
+  imports the right module depending on database type
+  Parameters:
+    DBType : The type of database server to connect to
+                Supported server types are sqlite, mssql, mysql and postgres
+    Server : Hostname for the database server
+    DBUser : Database username
+    DBPWD  : Password for the database user
+    Database  : The name of the database to use
+  Returns:
+    Connection object to be used by query function, or an error string
+  """
+  strDBType = DBType
+  strServer = Server
+  strDBUser = DBUser
+  strDBPWD = DBPWD
+  strInitialDB = Database
+
+  if strServer == "":
+    return "Servername can't be empty"
+
+  try:
+    if strDBType == "sqlite":
+      import sqlite3
+      strVault = strServer
+      strVault = strVault.replace("\\", "/")
+      if strVault[-1:] == "/":
+        strVault = strVault[:-1]
+      if strVault[-3:] != ".db":
+        strVault += ".db"
+      lstPath = os.path.split(strVault)
+      if not os.path.exists(lstPath[0]):
+        os.makedirs(lstPath[0])
+      return sqlite3.connect(strVault)
+  except dboErr as err:
+    return("SQLite Connection failure {}".format(err))
+
+  try:
+    if strDBType == "mssql":
+      if not CheckDependency("pyodbc")["success"]:
+        return "failed to install pyodbc. Please pip install pyodbc before using MS SQL option."
+      import pyodbc as dbo
+      if strDBUser == "":
+        strConnect = (" DRIVER={{ODBC Driver 17 for SQL Server}};"
+                      " SERVER={};"
+                      " DATABASE={};"
+                      " Trusted_Connection=yes;".format(strServer, strInitialDB))
+      else:
+        strConnect = (" DRIVER={{ODBC Driver 17 for SQL Server}};"
+                      " SERVER={};"
+                      " DATABASE={};"
+                      " UID={};"
+                      " PWD={};".format(strServer, strInitialDB, strDBUser, strDBPWD))
+      return dbo.connect(strConnect)
+    elif strDBType == "mysql":
+      if not CheckDependency("pymysql")["success"]:
+        return "failed to install pymysql. Please pip install pymysql before using mySQL option."
+      import pymysql as dbo
+      from pymysql import err as dboErr
+      return dbo.connect(host=strServer, user=strDBUser, password=strDBPWD, db=strInitialDB)
+    elif strDBType == "postgres":
+      if not CheckDependency("psycopg2-binary")["success"]:
+        return "failed to install psycopg2-binary. Please pip install psycopg2-binary before using PostgreSQL option."
+      import psycopg2 as dbo
+      return dbo.connect(host=strServer, user=strDBUser, password=strDBPWD, database=strInitialDB)
+    else:
+      return ("Unknown database type: {}".format(strDBType))
+  except Exception as err:
+    return ("Error: unable to connect: {}".format(err))
+
+def DBQuery(*, SQL, dbConn):
+  """
+  Function that handles executing a SQL query using a predefined connection object
+  imports the right module depending on database type
+  Parameters:
+    SQL    : The query to be executed
+    dbConn : The connection object to use
+  Returns:
+    NoneType for queries other than select, DBCursor object with the results from the select query
+    or error message as a string
+  """
+  strSQL = SQL
+  try:
+    dbCursor = dbConn.cursor()
+    dbCursor.execute(strSQL)
+    if strSQL[:6].lower() != "select":
+      dbConn.commit()
+      return None
+    else:
+      return dbCursor
+  except Exception as err:
+    return "Failed to execute query: {}\n{}\nLength of SQL statement {}\n".format(err, strSQL[:255], len(strSQL))
+
 def StringEncryptor(strPWD, strData, encode=True):
   """
   This handles encrypting a string using AES.
@@ -248,42 +343,76 @@ def SQLOp(strCmd, strKey="", strValue=""):
     Decrypted clear text simple string
   """
   if strCmd == "Create":
-    strSQLTable = "CREATE TABLE IF NOT EXISTS tblVault(strkey text not null, strValue text not null);"
-    strSQLIndex = "CREATE UNIQUE INDEX IF NOT EXISTS idxKey on tblVault (strKey);"
-    try:
-      objSQLite.execute(strSQLTable)
-      objSQLite.execute(strSQLIndex)
-      return True
-    except DBError as err:
-      print("SQLite failed to create table or index: {}".format(err))
-      return False
+    strTableCreate = "CREATE TABLE "
+    if strStore != "mssql":
+      strTableCreate += "IF NOT EXISTS "
+      strTextField = "text not null"
+    else:
+      strTextField = "varchar(MAX) not null"
+    strTableCreate += "tblVault(strKey " + strTextField + ", strValue " + strTextField + ");"
+    if strStore == "mssql":
+      strSQL = "select OBJECT_ID('tblVault', 'U')"
+      dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
+      strReturn = dbCursor.fetchone()
+      if strReturn[0] is None:
+        dbCursor = DBQuery(SQL=strTableCreate, dbConn=dbConn)
+        print("Query complete.")
+        if isinstance(dbCursor, str):
+          print("Failed to create table on MS SQL. Results is only the following string: {}".format(dbCursor))
+      else:
+        print("Table already exists")
+    else:
+      dbCursor = DBQuery(SQL=strTableCreate, dbConn=dbConn)
+      if isinstance(dbCursor, str):
+        print("Failed to create table on {}. Results is only the following string: {}".format(strStore, dbCursor))
+        return False
+      else:
+        return True
+
   elif strCmd == "select":
-    strSQLQuery = "select strKey, strValue from tblVault"
+    strSQL = "select strKey, strValue from tblVault"
     if strKey != "":
-      strSQLQuery += " where strKey = '{}';".format(strKey)
-    try:
-      dbCursor = objSQLite.execute(strSQLQuery)
-      return dbCursor.fetchall()
-    except DBError as err:
-      print("Failed to query to SQLite database: {}".format(err))
+      strSQL += " where strKey = '{}';".format(strKey)
+    dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
+    if isinstance(dbCursor, str):
+      print("Failed to fetch data on {}. Results is only the following string: {}".format(
+          strStore, dbCursor))
       return False
+    else:
+      return dbCursor.fetchall()
+     
   elif strCmd == "update":
     strSQL = "update tblVault set strValue = '{}' where strKey = '{}';".format(strValue, strKey)
-    objSQLite.execute(strSQL)
-    objSQLite.commit()
-    return True
+    dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
+    if isinstance(dbCursor, str):
+      print("Failed to update data on {}. Results is only the following string: {}".format(
+          strStore, dbCursor))
+      return False
+    else:
+      return True
+
   elif strCmd == "insert":
     strSQL = "insert into tblVault (strKey,strValue) values('{}','{}');".format(strKey, strValue)
-    objSQLite.execute(strSQL)
-    objSQLite.commit()
-    return True
+    dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
+    if isinstance(dbCursor, str):
+      print("Failed to update data on {}. Results is only the following string: {}".format(
+          strStore, dbCursor))
+      return False
+    else:
+      return True
+
   elif strCmd == "delete":
     strSQL = "delete from tblVault"
     if strKey != "":
       strSQL += " where strKey = '{}';".format(strKey)
-    objSQLite.execute(strSQL)
-    objSQLite.commit()
-    return True
+    dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
+    if isinstance(dbCursor, str):
+      print("Failed to update data on {}. Results is only the following string: {}".format(
+          strStore, dbCursor))
+      return False
+    else:
+      return True
+
   else:
     print("Unsupported SQL operation: {}".format(strCmd))
 
@@ -590,7 +719,7 @@ def VaultInit():
   """
   global objRedis
   global strVault
-  global objSQLite
+  global dbConn
 
   if strStore.lower() == "files":
     print("Using filsystem store")
@@ -613,13 +742,13 @@ def VaultInit():
       os.makedirs(strVault)
       print(
           "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
+  
   elif strStore.lower() == "redis":
     print("Using redis store")
     if not CheckDependency("redis")["success"]:
       print("failed to install redis. Please pip install redis prior to using redis store.")
     else:
       print("redis module is good")
-
     import redis
     strRedisHost = FetchEnv("HOST")
     iRedisPort = FetchEnv("PORT")
@@ -631,6 +760,7 @@ def VaultInit():
       print("with password that starts with {}".format(strDBpwd[:2]))
     objRedis = redis.Redis(
         host=strRedisHost, port=iRedisPort, db=iRedisDB, password=strDBpwd)
+  
   elif strStore.lower() == "sqlite":
     if strVault == "":
       print("No command argument vault specifier, checking environment variable")
@@ -644,26 +774,18 @@ def VaultInit():
       print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
     else:
       print("Using vault path of {}".format(strVault))
-    strVault = strVault.replace("\\", "/")
-    if strVault[-1:] == "/":
-      strVault = strVault[:-1]
-    lstPath = os.path.split(strVault)
-    if not os.path.exists(lstPath[0]):
-      os.makedirs(lstPath[0])
-      print(
-          "\nPath '{0}' for vault didn't exists, so I create it!\n".format(lstPath[0]))
-    objSQLite = None
-    try:
-      objSQLite = sqlite3.connect(strVault)
-      print("Connected to SQLite {}".format(sqlite3.version))
-    except DBError as err:
-      print("SQLite database operation failed: {}".format(err))
+    dbConn = DBConnect(DBType=strStore, Server=strVault)
+    if isinstance(dbConn,str):
+      print("Failed to connect to {} at {}. Error: {}".format(strStore,strVault,dbConn))
       sys.exit(9)
+    else:
+      print("Connection to {} at {} successful.".format(strStore, strVault))
     if SQLOp("Create"):
       print("Table and Index created")
     else:
       print("Failed to create table or index")
       sys.exit(9)
+  
   else:
     print("Unsupported store {}".format(strStore))
     sys.exit(9)
