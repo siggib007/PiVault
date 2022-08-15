@@ -1,11 +1,11 @@
 CLIPPYENABLE: 'true' #Set to false to completely disable the clipboard feature and not attempt to load associated modules
 DB: '0'              #Specify the database for those stores that need to have a database name
 DBPWD: SecretDBPass  #Password for databases that are password protected
-DBUSSER: QueryUser   #Username for databases that require that
+DBUSER: QueryUser   #Username for databases that require that
 HIDEINPUT: 'true'    #Set to true to enable masking on value input
 HOST: localhost      #hostname for those stores that are host based
 PORT: '6379'         #TCP port number for those stores that communicate over a specific TCP port
-PWD: SuperSecretPWD! #Password for the vault
+VAULTPWD: SuperSecretPWD! #Password for the vault
 STORE: redis         #specifies the type of store to use. Currently only files and redis are supported
 VALUECOLOR: blue     #which color to display the fetched value in. black, red, green, orange, blue, purple, cyan, lightgrey, darkgrey, lightred, lightgreen, yellow, lightblue, pink, lightcyan
 VAULT: ~/PieVault    #For Files storage engine specify the path to the folder where all the items should be saved.

@@ -1,5 +1,14 @@
 # PiVault
-This is a very simply CLI based secrets manager written in python. This has been tested to my knowledge on 3.6, 3.7 and 3.10, and on Windows 10, Windows 11, ubuntu 18, ubuntu 20, OpenBSD and MacOS. More testing is appreciated and if you find issues or have a feature request please log it under the issue tab.
+This is a very simply CLI based secrets manager written in python and tested on python 3.6, 3.7 and 3.10 to some various levels.  At the time of this writing I've included support for the following storage engines and it's been tested under the stated operating system
+
+- File System: Windows 10, Windows 11, ubuntu 18, ubuntu 20, OpenBSD and MacOS
+- Redis: Windows 10, Windows 11, ubuntu 18, ubuntu 20
+- SQLite: Windows 10, Windows 11, ubuntu 18, ubuntu 20
+- Microsoft SQL: Windows 10
+- MySQL/MariaDB: Windows 10, WSL Debian, Ubuntu 22.04, Debian 11
+- PostgreSQL: Windows 10, WSL Debian, Ubuntu 22.04, Debian 11
+
+The level of testing is very superficial and inconsistent. More testing is appreciated and if you find issues or have a feature request please log it under the issue tab or submit a PR.
 
 Features include:
 
@@ -12,7 +21,7 @@ Features include:
 
 The clipboard feature works across SSH if you have X11 setup properly on both the client and the server, have xclip installed, etc. If you can do all sorts of X11 stuff, then the clipboard should work across the SSH connection. Otherwise the clipboard feature is unavailable on SSH or remote sessions where there is no clipboard support. You'll get a message when you start the script whether clipboard feature is working or not. 
 
-Everything is a key value pair where the key (aka name) is public but the value is secret. The value is encrypted using AES-256 in MODE_CBC, if you don't know what that means, just know that is one of the best encryption methods available when this was written in August of 2022. When used with a strong, un-guessable, password it has not been cracked as of this writing.  After the value is encrypted it is base64 encoded and stored under the key in the chosen storage engine. At the time of this writing I've included support for SQLite, filesystem and Redis as a storage engine, however I've got plan to add various other database support. I also plan to offer PGP encryption as well. This ReadMe will be updated as I complete these options. You can see more details about my plans on the issue tab.
+Everything is a key value pair where the key (aka name) is public but the value is secret. The value is encrypted using AES-256 in MODE_CBC, if you don't know what that means, just know that is one of the best encryption methods available when this was written in August of 2022. When used with a strong, un-guessable, password it has not been cracked as of this writing.  After the value is encrypted it is base64 encoded and stored under the key in the chosen storage engine. I also plan to offer PGP encryption as well. This ReadMe will be updated once that is ready. You can see more details about my plans on the issue tab.
 
 For the filesystem storage engine each key value pair is stored in its own file in a specified folder, where the key is the filename and the content of the file is the encrypted base64 encoded blob. If no folder path is provided then a folder called `VaultData` is created in the same directory as the script. You can provide an alternative path in one of two ways:
 
@@ -23,7 +32,7 @@ SQLite database file will also be named after this vault variable, just has .db 
 
 By default password entries are masked but value entries are not. If you wish to have value entries masked, create a environment variable called HIDEINPUT and set it to true.
 
-Speaking of passwords and environment variables, you can define an environment variable called PWD and assign your vault password to it. Don't do this lightly though, think through your threat matrix and evaluate if this fits into your risk model. Depending on your situation this cold be a risky thing to do. For most people it is fine to do this and makes it easy to use a long and complex password which increases your security. Of course the best way to deal with this is to use Doppler secrets manager. If you haven't heard about Doppler you can check out my blog at https://bit.ly/3KYvukH and feel free to reach out if you have questions.
+Speaking of passwords and environment variables, you can define an environment variable called VAULTPWD and assign your vault password to it. Don't do this lightly though, think through your threat matrix and evaluate if this fits into your risk model. Depending on your situation this cold be a risky thing to do. For most people it is fine to do this and makes it easy to use a long and complex password which increases your security. Of course the best way to deal with this is to use Doppler secrets manager. If you haven't heard about Doppler you can check out my blog at https://bit.ly/3KYvukH and feel free to reach out if you have questions.
 
 When you fetch a stored value, the decrypted string is printed in red font by default. You can change this by defining an environment variable called VALUECOLOR and setting it to one these colors: black, red, green, orange, blue, purple, cyan, lightgrey, darkgrey, lightred, lightgreen, yellow, lightblue, pink, lightcyan.
 
@@ -72,7 +81,19 @@ python3 PiVault.py vault=MyVault add testkey17 this is a key value for new vault
 This creates a new entry called testkey17 and encrypts the string "this is a key value for new vault" and stores it in a vault called `MyVault` in the current directory
 
 ```
-python3 PiVault.py totp otpath
+python3 PiVault.py add JoesApp ERN7C3DG3GWBKDF6JXRCQIAF4M24GMQ7NZXL5JF4XPQU45N3R642VTCKHTIRU72W
+```
+
+This stores the TOTP secret from JoesApp for later use to generate a TOTP code
+
+```
+python3 PiVault.py add Wonderland otpauth://totp/Wonderland:Alice@wonderland.com?secret=JZ3I66NGNBHFA3PZRIUA46XNYXQJM6SFIWSXO6T3GUNFEDQFHPQRMHVSS3MAZCUCJZ3I66NGNBHFA3PZRIUA46XNYXQJM6SFIWSXO6T3GUNFEDQFHPQRMHVSS3MAZCUC
+```
+
+This stores the whole TOTP URL from the Wonderland system for later use to generate a TOTP code
+
+```
+python3 PiVault.py totp Wonderland
 ```
 
 This decrypts entry otpath and uses it to generate a TOTP (Google Auth compatible) and displays it in the console

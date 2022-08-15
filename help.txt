@@ -13,13 +13,18 @@ DESCRIPTION
     
     Encrypt/decrypt functions copied from https://stackoverflow.com/a/44212550/8549454
     
-    Following packages need to be installed
+    Following packages need to be installed for base functionality
     pip install pycryptodome
     pip install maskpass
+    
+    If you want to use clipboard feature
     pip install pyperclip
     
     If you are using Redis also:
     pip install redis
+    
+    If you are using TOTP feature
+    pip install pyotp
 
 FUNCTIONS
     AddFileItem(strKey, strValue, bConf=True, strPass='')
@@ -76,12 +81,54 @@ FUNCTIONS
         Returns:
           nothing
     
+    CheckDependency(Module)
+        Function that installs missing depedencies
+        Parameters:
+          Module : The name of the module that should be installed
+        Returns:
+          dictionary object without output from the installation.
+            if the module needed to be installed
+              code: Return code from the installation
+              stdout: output from the installation
+              stderr: errors from the installation
+              args: list object with the arguments used during installation
+              success: true/false boolean indicating success.
+            if module was already installed so no action was taken
+              code: -5
+              stdout: Simple String: {module} version {x.y.z} already installed
+              stderr: Nonetype
+              args: module name as passed in
+              success: True as a boolean
+    
     CheckVault()
         Function used by login function to check the vault.
         Parameters:
           none
         Returns:
           true/false indicating if the vault is good or not
+    
+    DBConnect(*, DBType, Server, DBUser='', DBPWD='', Database='')
+        Function that handles establishing a connection to a specified database
+        imports the right module depending on database type
+        Parameters:
+          DBType : The type of database server to connect to
+                      Supported server types are sqlite, mssql, mysql and postgres
+          Server : Hostname for the database server
+          DBUser : Database username
+          DBPWD  : Password for the database user
+          Database  : The name of the database to use
+        Returns:
+          Connection object to be used by query function, or an error string
+    
+    DBQuery(*, SQL, dbConn)
+        Function that handles executing a SQL query using a predefined connection object
+        imports the right module depending on database type
+        Parameters:
+          SQL    : The query to be executed
+          dbConn : The connection object to use
+        Returns:
+          NoneType for queries other than select, DBCursor object with the results from the select query
+          or error message as a string
     
     DefineColors()
         Simple function that loads the dictColor dictionary of colors
@@ -200,6 +247,14 @@ FUNCTIONS
         Returns:
           Decrypted clear text simple string
     
+    ShowTOTP(strKey)
+        Function that fetches the specified key from the datastore and decrypts it.
+        Decrypted value is then used to generate a time based one time token.
+        Parameters:
+          strKey: The name of the key to be fetched
+        Returns:
+          A string with the generated token, or bolean false on failure
+    
     StringDecryptor(strPWD, strData, decode=True)
         This handles decrypting a string encrypted with AES
         Adopted from https://stackoverflow.com/a/44212550/8549454
@@ -244,12 +299,10 @@ FUNCTIONS
 DATA
     bDefHide = False
     bLoggedIn = False
+    dictComponents = {}
+    lstDBTypes = ['sqlite', 'mysql', 'postgres', 'mssql']
     strCheckFile = 'VaultInit'
     strCheckValue = 'This is a simple secrets vault'
     strDefStore = 'files'
     strDefValueColor = 'red'
     strDefVault = 'VaultData'
-
-
-
-
