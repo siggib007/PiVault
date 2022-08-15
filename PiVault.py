@@ -98,6 +98,7 @@ def CheckDependency(Module):
 
 if not CheckDependency("pycryptodome")["success"]:
   print ("failed to install pycryptodome. Please pip install pycryptodome as that is needed for all the crypto work.")
+  sys.exit(5)
 
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
@@ -105,7 +106,8 @@ from Crypto import Random
 
 if not CheckDependency("maskpass")["success"]:
   print("failed to install maskpass. Please pip install maskpass to be able to mask the password input.")
-
+  sys.exit(5)
+  
 import maskpass
 
 # End imports
