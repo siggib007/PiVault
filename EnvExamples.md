@@ -47,7 +47,7 @@ DBPWD: SecretDBPassword   # Required if configured on your Redis instance, other
 CLIPPYENABLE: true # optional defaults to true
 HIDEINPUT: true # optional defaults to true
 VAULTPWD: SuperStrongsecretPWD!
-STORE: mysql #required for MySQL and MariaDB, for PostgreSQL use postgres and mssql for Microsoft SQL
+STORE: mysql #required. For MySQL and MariaDB use mysql, for PostgreSQL use postgres and mssql for Microsoft SQL
 VALUECOLOR: blue # Optional defaults to red
 DB: Vault #required, use correct value for your installation
 HIDEINPUT: true # Optional, defaults to false

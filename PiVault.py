@@ -113,6 +113,46 @@ import maskpass
 
 # End imports
 
+
+def isInt(CheckValue):
+  # function to safely check if a value can be interpreded as an int
+  if isinstance(CheckValue, int):
+    return True
+  elif isinstance(CheckValue, str):
+    if CheckValue.isnumeric():
+      return True
+    else:
+      return False
+  else:
+    return False
+
+
+def isFloat(fValue):
+  if isinstance(fValue, (float, int, str)):
+    try:
+      fTemp = float(fValue)
+    except ValueError:
+      fTemp = "NULL"
+  else:
+    fTemp = "NULL"
+  return fTemp != "NULL"
+
+def DBClean(strText):
+  if strText.strip() == "":
+    return "NULL"
+  elif isInt(strText):
+    return strText  # int(strText)
+  elif isFloat(strText):
+    return strText  # float(strText)
+  else:
+    strTemp = strText.encode("ascii", "ignore")
+    strTemp = strTemp.decode("ascii", "ignore")
+    strTemp = strTemp.replace("\\", "")
+    strTemp = strTemp.replace("'", "")
+    strTemp = strTemp.replace(";", "")
+    return strTemp
+
+
 def DBConnect(*, DBType, Server, DBUser="", DBPWD="", Database=""):
   """
   Function that handles establishing a connection to a specified database
@@ -600,6 +640,7 @@ def ProcessCMD(objCmd):
     return
   if strCmd == "help":
     DisplayHelp()
+
   elif strCmd == "add":
     bLogin = True
     if not bLoggedIn:
@@ -695,7 +736,7 @@ def ProcessCMD(objCmd):
         strKey = input("Please provide name of key you wish to get TOTP code for: ")
       strResponse = ShowTOTP(strKey)
       if isinstance(strResponse,str):
-        print("Your code is: {}".format(strResponse))
+        print("Your code is: {} {} {}".format(strFormat, strResponse, strFormatReset))
         if bClippy:
           pyperclip.copy(strResponse)
           print("Your code is on the clipboard as well")
@@ -963,6 +1004,7 @@ def AddItem(strKey, strValue, bConf=True, strPass=""):
   Returns:
     True/false boolean to indicate if the was successful or not
   """
+  strKey = DBClean(strKey)
   if strStore.lower() == "files":
     return AddFileItem(strKey, strValue, bConf, strPass)
   elif strStore.lower() == "redis":
@@ -1036,6 +1078,7 @@ def FetchItem(strKey):
   Returns:
     Either the decrypted string or boolean false to indicate a failure
   """
+  strKey = DBClean(strKey)
   if strStore.lower() == "files":
     return FetchFileItem(strKey)
   elif strStore.lower() == "redis":
@@ -1053,6 +1096,7 @@ def DelItem(strKey):
   Returns:
     Nothing
   """
+  strKey = DBClean(strKey)
   if strStore.lower() == "files":
     if strKey != "":
       strFileName = strVault + strKey
