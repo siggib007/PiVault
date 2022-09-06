@@ -115,7 +115,13 @@ import maskpass
 
 
 def isInt(CheckValue):
-  # function to safely check if a value can be interpreded as an int
+  """
+  Function checks if a value is an integer
+  Parameters:
+    CheckValue: String to be evaluated
+  Returns:
+    true/false
+  """
   if isinstance(CheckValue, int):
     return True
   elif isinstance(CheckValue, str):
@@ -127,6 +133,13 @@ def isInt(CheckValue):
     return False
 
 def isFloat(fValue):
+  """
+  Function checks if a value is a floating point number
+  Parameters:
+    fValue: String to be evaluated
+  Returns:
+    true/false
+  """
   if isinstance(fValue, (float, int, str)):
     try:
       fTemp = float(fValue)
@@ -137,6 +150,14 @@ def isFloat(fValue):
   return fTemp != "NULL"
 
 def DBClean(strText):
+  """
+  Function that removes undesirables from a string to prevent SQL injection
+  Parameters:
+    strText: String to be cleaned
+  Returns:
+    Clean string that is safe to send to database query
+  """
+
   if strText.strip() == "":
     return "NULL"
   elif isInt(strText):
@@ -1150,6 +1171,14 @@ def ResetStore():
     return None
 
 def MsgOut(strMsg):
+  """
+  Function that check quiet environment variable and only prints if it is false
+  Parameters:
+    strMsg: String to be printed
+  Returns:
+    Nothing
+  """
+
   if not bQuiet:
     print(strMsg)
 
