@@ -1,5 +1,5 @@
 '''
-Very simply secrets vault. 
+Very simply secrets vault.
  - Takes in a string, encrypts it and stores the encrypted string.
  - Then retrieves the encrypted string and decrypts it for use
 
@@ -36,12 +36,13 @@ bDefHide = False
 strDefValueColor = "red"
 strDefStore = "files"
 strDefVault = "VaultData"
+strDefTable = "tblVault"
 strCheckValue = "This is a simple secrets vault"
 strCheckFile = "VaultInit"
 lstDBTypes = ["sqlite", "mysql", "postgres", "mssql"]
 bLoggedIn = False
 dictComponents = {}
-#functions 
+#functions
 
 def CheckDependency(Module):
   """
@@ -64,7 +65,7 @@ def CheckDependency(Module):
         success: True as a boolean
   """
   global dictComponents
-  
+
   dictReturn = {}
   strModule = Module
   if len(dictComponents) == 0:
@@ -107,7 +108,7 @@ from Crypto import Random
 if not CheckDependency("maskpass")["success"]:
   print("failed to install maskpass. Please pip install maskpass to be able to mask the password input.")
   sys.exit(5)
-  
+
 import maskpass
 
 # End imports
@@ -168,14 +169,14 @@ def DBConnect(*, DBType, Server, DBUser="", DBPWD="", Database=""):
                       " UID={};"
                       " PWD={};".format(strServer, strInitialDB, strDBUser, strDBPWD))
       return dbo.connect(strConnect)
-    
+
     elif strDBType == "mysql":
       if not CheckDependency("pymysql")["success"]:
         return "failed to install pymysql. Please pip install pymysql before using mySQL option."
       import pymysql as dbo
       from pymysql import err as dboErr
       return dbo.connect(host=strServer, user=strDBUser, password=strDBPWD, db=strInitialDB)
-    
+
     elif strDBType == "postgres":
       if not CheckDependency("psycopg2-binary")["success"]:
         return "failed to install psycopg2-binary. Please pip install psycopg2-binary before using PostgreSQL option."
@@ -256,7 +257,7 @@ def StringDecryptor(strPWD, strData, decode=True):
 
 def GetFileHandle(strFileName, strperm):
   """
-  This wraps error handling around standard file open function 
+  This wraps error handling around standard file open function
   Parameters:
     strFileName: Simple string with filename to be opened
     strperm: single character string, usually w or r to indicate read vs write. other options such as "a" are valid too.
@@ -348,9 +349,9 @@ def SQLOp(strCmd, strKey="", strValue=""):
       strTextField = "text not null"
     else:
       strTextField = "varchar(MAX) not null"
-    strTableCreate += "tblVault(strKey " + strTextField + ", strValue " + strTextField + ");"
+    strTableCreate += strTable + "(strKey " + strTextField + ", strValue " + strTextField + ");"
     if strStore == "mssql":
-      strSQL = "select OBJECT_ID('tblVault', 'U')"
+      strSQL = "select OBJECT_ID('{}', 'U')".format(strTable)
       dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
       strReturn = dbCursor.fetchone()
       if strReturn[0] is None:
@@ -371,7 +372,7 @@ def SQLOp(strCmd, strKey="", strValue=""):
         return True
 
   elif strCmd == "select":
-    strSQL = "select strKey, strValue from tblVault"
+    strSQL = "select strKey, strValue from " + strTable
     if strKey != "":
       strSQL += " where strKey = '{}';".format(strKey)
     dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
@@ -381,9 +382,9 @@ def SQLOp(strCmd, strKey="", strValue=""):
       return False
     else:
       return dbCursor.fetchall()
-     
+
   elif strCmd == "update":
-    strSQL = "update tblVault set strValue = '{}' where strKey = '{}';".format(strValue, strKey)
+    strSQL = "update {} set strValue = '{}' where strKey = '{}';".format(strTable, strValue, strKey)
     dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
     if isinstance(dbCursor, str):
       print("Failed to update data on {}. Results is only the following string: {}".format(
@@ -393,7 +394,7 @@ def SQLOp(strCmd, strKey="", strValue=""):
       return True
 
   elif strCmd == "insert":
-    strSQL = "insert into tblVault (strKey,strValue) values('{}','{}');".format(strKey, strValue)
+    strSQL = "insert into {} (strKey,strValue) values('{}','{}');".format(strTable, strKey, strValue)
     dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
     if isinstance(dbCursor, str):
       print("Failed to update data on {}. Results is only the following string: {}".format(
@@ -403,7 +404,7 @@ def SQLOp(strCmd, strKey="", strValue=""):
       return True
 
   elif strCmd == "delete":
-    strSQL = "delete from tblVault"
+    strSQL = "delete from " + strTable
     if strKey != "":
       strSQL += " where strKey = '{}';".format(strKey)
     dbCursor = DBQuery(SQL=strSQL, dbConn=dbConn)
@@ -705,7 +706,7 @@ def ProcessCMD(objCmd):
 
 def FetchEnv(strVarName):
   """
-  Function that fetches the specified content of specified environment variable, 
+  Function that fetches the specified content of specified environment variable,
   converting nonetype to empty string.
   Parameters:
     strVarName: The name of the environment variable to be fetched
@@ -753,7 +754,7 @@ def VaultInit():
       os.makedirs(strVault)
       print(
           "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
-  
+
   elif strStore.lower() == "redis":
     print("Using redis store")
     if not CheckDependency("redis")["success"]:
@@ -769,7 +770,7 @@ def VaultInit():
       print("with password that starts with {}".format(strDBpwd[:2]))
     objRedis = redis.Redis(
         host=strRedisHost, port=iRedisPort, db=iRedisDB, password=strDBpwd)
-  
+
   elif strStore.lower() in lstSQLDB:
     strServer = FetchEnv("HOST")
     strInitialDB = FetchEnv("DB")
@@ -811,7 +812,7 @@ def VaultInit():
     else:
       print("Failed to create table")
       sys.exit(9)
-  
+
   else:
     print("Unsupported store {}".format(strStore))
     sys.exit(9)
@@ -867,13 +868,13 @@ def ListCount():
 
 def AddFileItem(strKey, strValue, bConf=True, strPass=""):
   """
-  Function that encrypts the string provided and 
+  Function that encrypts the string provided and
   stores the key value pair in the file system data store
   Parameters:
     strKey: The name of the key part of the key value pair
     strValue: The value part of the key value pair
     bConf: Optional, defaults to True. If key updates should be confirmed
-    strPass: Optional, defaults to blank string. Use a password other than 
+    strPass: Optional, defaults to blank string. Use a password other than
               that validated by login function
   Returns:
     True/false boolean to indicate if the was successful or not
@@ -957,7 +958,7 @@ def AddItem(strKey, strValue, bConf=True, strPass=""):
     strKey: The name of the key part of the key value pair
     strValue: The value part of the key value pair
     bConf: Optional, defaults to True. If key updates should be confirmed
-    strPass: Optional, defaults to blank string. Use a password other than 
+    strPass: Optional, defaults to blank string. Use a password other than
               that validated by login function
   Returns:
     True/false boolean to indicate if the was successful or not
@@ -1107,7 +1108,7 @@ def main():
     none
   Returns:
     nothing
-  """ 
+  """
   global bCont
   global strVault
   global strPWD
@@ -1120,7 +1121,8 @@ def main():
   global pyotp
   global strStore
   global strBaseDir
-  
+  global strTable
+
   DefineMenu()
   DefineColors()
 
@@ -1175,10 +1177,15 @@ def main():
   strPWD = FetchEnv("VAULTPWD")
   strHideIn = FetchEnv("HIDEINPUT")
   strValueColor = FetchEnv("VALUECOLOR")
+  strTable = FetchEnv("TABLE")
   if strStore == "":
-    print("No store type environment, defaulting to Filesystem")
-    strStore = "Files"
-  
+    print("No store type environment, defaulting to {} store".format(strDefStore))
+    strStore = strDefStore
+
+  if strTable == "":
+    print("No Table name in environment, defaulting to {}".format(strDefTable))
+    strTable = strDefTable
+
   if strHideIn == "":
     bHideValueIn = bDefHide
   elif strHideIn.lower() == "true":
@@ -1207,7 +1214,7 @@ def main():
     ProcessCMD(lstSysArg)
   else:
     bCont = True
-  
+
   while bCont:
     ListCount()
     DisplayHelp()
