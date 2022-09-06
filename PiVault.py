@@ -98,7 +98,7 @@ def CheckDependency(Module):
     return dictReturn
 
 if not CheckDependency("pycryptodome")["success"]:
-  print ("failed to install pycryptodome. Please pip install pycryptodome as that is needed for all the crypto work.")
+  print("failed to install pycryptodome. Please pip install pycryptodome as that is needed for all the crypto work.")
   sys.exit(5)
 
 from Crypto.Cipher import AES
@@ -126,7 +126,6 @@ def isInt(CheckValue):
   else:
     return False
 
-
 def isFloat(fValue):
   if isinstance(fValue, (float, int, str)):
     try:
@@ -151,7 +150,6 @@ def DBClean(strText):
     strTemp = strTemp.replace("'", "")
     strTemp = strTemp.replace(";", "")
     return strTemp
-
 
 def DBConnect(*, DBType, Server, DBUser="", DBPWD="", Database=""):
   """
@@ -396,12 +394,12 @@ def SQLOp(strCmd, strKey="", strValue=""):
       strReturn = dbCursor.fetchone()
       if strReturn[0] is None:
         dbCursor = DBQuery(SQL=strTableCreate, dbConn=dbConn)
-        print("Query complete.")
+        MsgOut("Query complete.")
         if isinstance(dbCursor, str):
           print("Failed to create table on MS SQL. Results is only the following string: {}".format(dbCursor))
           return False
       else:
-        print("Table already exists")
+        MsgOut("Table already exists")
         return True
     else:
       dbCursor = DBQuery(SQL=strTableCreate, dbConn=dbConn)
@@ -478,11 +476,11 @@ def UserLogin():
         print("unable to decrypt vault, please try to login again")
         return False
     AddItem(strCheckFile, strCheckValue)
-    print("Vault Initialized")
+    MsgOut("Vault Initialized")
     bStatus = True
     return True
   elif bStatus:
-    print("Password is good")
+    MsgOut("Password is good")
     bStatus = True
     return True
   else:
@@ -539,7 +537,7 @@ def ListItems():
     nothing
   """
   if len(lstVault) > 0:
-    print("\nHere are all the keys in the vault:")
+    MsgOut("\nHere are all the keys in the vault:")
     for strItem in lstVault:
       if isinstance(strItem,bytes):
         strItem = strItem.decode("UTF-8")
@@ -679,7 +677,10 @@ def ProcessCMD(objCmd):
         strKey = input("Please provide name of key you wish to fetch: ")
       strValue = FetchItem(strKey)
       if strValue != False:
-        print("\nThe value of '{}' is:{} {}{}\n".format(
+        if bQuiet:
+          print("{}{}{}".format(strFormat, strValue, strFormatReset))
+        else:
+          print("\nThe value of '{}' is:{}{}{}\n".format(
             strKey, strFormat, strValue, strFormatReset))
   elif strCmd == "del":
     if len(lstCmd) > 1:
@@ -736,10 +737,13 @@ def ProcessCMD(objCmd):
         strKey = input("Please provide name of key you wish to get TOTP code for: ")
       strResponse = ShowTOTP(strKey)
       if isinstance(strResponse,str):
-        print("Your code is: {} {} {}".format(strFormat, strResponse, strFormatReset))
+        if bQuiet:
+          print("{}{}{}".format(strFormat, strResponse, strFormatReset))
+        else:
+          print("Your code is: {} {} {}".format(strFormat, strResponse, strFormatReset))
         if bClippy:
           pyperclip.copy(strResponse)
-          print("Your code is on the clipboard as well")
+          MsgOut("Your code is on the clipboard as well")
       else:
         print("failed to generate code")
   else:
@@ -775,29 +779,29 @@ def VaultInit():
   lstSQLDB.remove("sqlite")
 
   if strStore.lower() == "files":
-    print("Using filsystem store")
+    MsgOut("Using filsystem store")
     if strVault == "":
-      print("No command argument vault specifier, checking environment variable")
+      MsgOut("No command argument vault specifier, checking environment variable")
       strVault = FetchEnv("VAULT")
     if strVault != "":
-      print("Found {} in env for vault path".format(strVault))
+      MsgOut("Found {} in env for vault path".format(strVault))
     else:
-      print("no vault environment valuable")
+      MsgOut("no vault environment valuable")
     if strVault == "":
       strVault = strBaseDir + strDefVault + "/"
-      print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
+      MsgOut("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
     else:
-      print("Using vault path of {}".format(strVault))
+      MsgOut("Using vault path of {}".format(strVault))
     strVault = strVault.replace("\\", "/")
     if strVault[-1:] != "/":
       strVault += "/"
     if not os.path.exists(strVault):
       os.makedirs(strVault)
-      print(
+      MsgOut(
           "\nPath '{0}' for vault didn't exists, so I create it!\n".format(strVault))
 
   elif strStore.lower() == "redis":
-    print("Using redis store")
+    MsgOut("Using redis store")
     if not CheckDependency("redis")["success"]:
       print("failed to install redis. Please pip install redis prior to using redis store.")
     import redis
@@ -806,9 +810,9 @@ def VaultInit():
     iRedisDB = FetchEnv("DB")
     strDBpwd = FetchEnv("DBPWD")
     lstHost = strRedisHost.split(".")
-    print("Connecting to redis server at ...{}".format(".".join(lstHost[-3:])))
+    MsgOut("Connecting to redis server at ...{}".format(".".join(lstHost[-3:])))
     if strDBpwd != "":
-      print("with password that starts with {}".format(strDBpwd[:2]))
+      MsgOut("with password that starts with {}".format(strDBpwd[:2]))
     objRedis = redis.Redis(
         host=strRedisHost, port=iRedisPort, db=iRedisDB, password=strDBpwd)
 
@@ -824,32 +828,32 @@ def VaultInit():
           strStore, strVault, dbConn))
       sys.exit(9)
     else:
-      print("Connection to {} at {} successful.".format(strStore, strServer))
+      MsgOut("Connection to {} at {} successful.".format(strStore, strServer))
     if not SQLOp("Create"):
       print("Failed to create table")
       sys.exit(9)
 
   elif strStore.lower() == "sqlite":
     if strVault == "":
-      print("No command argument vault specifier, checking environment variable")
+      MsgOut("No command argument vault specifier, checking environment variable")
       strVault = FetchEnv("VAULT")
     if strVault != "":
-      print("Found {} in env for vault path".format(strVault))
+      MsgOut("Found {} in env for vault path".format(strVault))
     else:
-      print("no vault environment valuable")
+      MsgOut("no vault environment valuable")
     if strVault == "":
       strVault = strBaseDir + strDefVault + ".db"
-      print("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
+      MsgOut("No vault path provided in either env or argument. Defaulting vault path to: {}".format(strVault))
     else:
-      print("Using vault path of {}".format(strVault))
+      MsgOut("Using vault path of {}".format(strVault))
     dbConn = DBConnect(DBType=strStore, Server=strVault)
     if isinstance(dbConn,str):
       print("Failed to connect to {} at {}. Error: {}".format(strStore,strVault,dbConn))
       sys.exit(9)
     else:
-      print("Connection to {} at {} successful.".format(strStore, strVault))
+      MsgOut("Connection to {} at {} successful.".format(strStore, strVault))
     if SQLOp("Create"):
-      print("Table created")
+      MsgOut("Table created")
     else:
       print("Failed to create table")
       sys.exit(9)
@@ -900,7 +904,7 @@ def ListCount():
   else:
     iVaultLen = len(lstVault)
   if iVaultLen > 0:
-    print("Vault is initialized and contains {} entries".format(iVaultLen))
+    MsgOut("Vault is initialized and contains {} entries".format(iVaultLen))
   else:
     if strCheckFile in lstVault:
       print("Vault is inilized with no entries")
@@ -931,7 +935,7 @@ def AddFileItem(strKey, strValue, bConf=True, strPass=""):
 
   tmpResponse = GetFileHandle(strFileOut, "w")
   if isinstance(tmpResponse, str):
-    print(tmpResponse)
+    MsgOut(tmpResponse)
     return False
   else:
     objFileOut = tmpResponse
@@ -1012,7 +1016,7 @@ def AddItem(strKey, strValue, bConf=True, strPass=""):
   elif strStore.lower() in lstDBTypes:
     return AddSQLItem(strKey, strValue, bConf, strPass)
   else:
-    print ("Unknown store {}".format(strStore))
+    print("Unknown store {}".format(strStore))
     return None
 
 def FetchFileItem(strKey):
@@ -1026,7 +1030,7 @@ def FetchFileItem(strKey):
   strFileIn = strVault + strKey
   tmpResponse = GetFileHandle(strFileIn, "r")
   if isinstance(tmpResponse, str):
-    print(tmpResponse)
+    MsgOut(tmpResponse)
     return False
   else:
     objFileIn = tmpResponse
@@ -1145,6 +1149,10 @@ def ResetStore():
     print("Unknown store {}".format(strStore))
     return None
 
+def MsgOut(strMsg):
+  if not bQuiet:
+    print(strMsg)
+
 def main():
   """
   Initial entry point where some of the initialization takes place.
@@ -1166,9 +1174,17 @@ def main():
   global strStore
   global strBaseDir
   global strTable
+  global bQuiet
 
   DefineMenu()
   DefineColors()
+
+  strQuiet = FetchEnv("QUIET")
+  if strQuiet.lower() == "true":
+    bQuiet = True
+  else:
+    bQuiet = False
+
 
   lstSysArg = sys.argv
 
@@ -1183,12 +1199,12 @@ def main():
   strVersion = "{0}.{1}.{2}".format(
       sys.version_info[0], sys.version_info[1], sys.version_info[2])
 
-  print("This is a simple secrets vault script. Enter in a key value pair "
+  MsgOut("This is a simple secrets vault script. Enter in a key value pair "
         "and the value will be encrypted with AES-256 using MODE_CBC and stored under the key.")
-  print ("This is running under Python Version {}".format(strVersion))
-  print("Running from: {}".format(strRealPath))
+  MsgOut("This is running under Python Version {}".format(strVersion))
+  MsgOut("Running from: {}".format(strRealPath))
   dtNow = time.asctime()
-  print("The time now is {}".format(dtNow))
+  MsgOut("The time now is {}".format(dtNow))
 
   strEnableClippy = FetchEnv("CLIPPYENABLE")
   if strEnableClippy.lower() == "false":
@@ -1200,17 +1216,17 @@ def main():
     import pyperclip
     try:
       pyperclip.paste()
-      print("Clipboard seems good so turning that on")
+      MsgOut("Clipboard seems good so turning that on")
       bClippy = True
     except pyperclip.PyperclipException:
-      print("Failed to find the clipboard, so turning clippy off")
+      MsgOut("Failed to find the clipboard, so turning clippy off")
       bClippy = False
 
   bTOTP = True
   strEnableTOTP = FetchEnv("TOTPENABLE")
   if strEnableTOTP.lower() == "false":
     bTOTP = False
-    print("Per environment variable, TOTP function has been turned off")
+    MsgOut("Per environment variable, TOTP function has been turned off")
   else:
     if not CheckDependency("pyotp")["success"]:
       print("failed to install pyotp. Please pip install pyotp or disable TOTP support.")
@@ -1223,11 +1239,11 @@ def main():
   strValueColor = FetchEnv("VALUECOLOR")
   strTable = FetchEnv("TABLE")
   if strStore == "":
-    print("No store type environment, defaulting to {} store".format(strDefStore))
+    MsgOut("No store type environment, defaulting to {} store".format(strDefStore))
     strStore = strDefStore
 
   if strTable == "":
-    print("No Table name in environment, defaulting to {}".format(strDefTable))
+    MsgOut("No Table name in environment, defaulting to {}".format(strDefTable))
     strTable = strDefTable
 
   if strHideIn == "":
@@ -1247,17 +1263,22 @@ def main():
   if len(lstSysArg) > 1:
     if lstSysArg[1][:5].lower() == "vault":
       strVault = lstSysArg[1][6:]
-      print("Found vault in argument: {}".format(strVault))
+      MsgOut("Found vault in argument: {}".format(strVault))
       del lstSysArg[1]
 
   VaultInit()
+  ListCount()
   if len(lstSysArg) > 1:
-    ListCount()
     bCont = False
     del lstSysArg[0]
     ProcessCMD(lstSysArg)
   else:
-    bCont = True
+    if bQuiet:
+      bCont = False
+      DisplayHelp()
+    else:
+      bCont = True
+
 
   while bCont:
     ListCount()
