@@ -113,6 +113,92 @@ import maskpass
 
 # End imports
 
+def CreateConfig():
+  """
+  Function that Creates a configuration file that can be customized
+  then used instead of environment variables
+  Parameters:
+    nothing
+  Returns:
+    tru/false indicating success of failure
+  """
+  tmpResponse = GetFileHandle(strConf_File, "w")
+  if isinstance(tmpResponse, str):
+    print(tmpResponse)
+    return False
+  else:
+    objFileOut = tmpResponse
+    objFileOut.write("CLIPPYENABLE={}\n".format(FetchEnv("CLIPPYENABLE")))
+    objFileOut.write("DB={}\n".format(FetchEnv("DB")))
+    objFileOut.write("DBPWD={}\n".format(FetchEnv("DBPWD")))
+    objFileOut.write("DBUSER={}\n".format(FetchEnv("DBUSER")))
+    objFileOut.write("HIDEINPUT={}\n".format(FetchEnv("HIDEINPUT")))
+    objFileOut.write("HOST={}\n".format(FetchEnv("HOST")))
+    objFileOut.write("PORT={}\n".format(FetchEnv("PORT")))
+    objFileOut.write("STORE={}\n".format(FetchEnv("STORE")))
+    objFileOut.write("TABLE={}\n".format(FetchEnv("TABLE")))
+    objFileOut.write("TOTPENABLE={}\n".format(FetchEnv("TOTPENABLE")))
+    objFileOut.write("VALUECOLOR={}\n".format(FetchEnv("VALUECOLOR")))
+    objFileOut.write("VAULT={}\n".format(FetchEnv("VAULT")))
+    objFileOut.close()
+    return True
+
+def processConf(strConf_File):
+  """
+  Function that processes a configuration file that can be customized
+  then used instead of environment variables
+  Parameters:
+    nothing
+  Returns:
+    Nothing
+  """
+
+  MsgOut("Looking for configuration file: {}".format(strConf_File))
+  if os.path.isfile(strConf_File):
+    MsgOut("Configuration File exists")
+  else:
+    MsgOut("Can't find configuration file {}, make sure it is the same directory "
+             "as this script and named the same with ini extension".format(strConf_File))
+    sys.exit(9)
+
+  strLine = "  "
+  dictConfig = {}
+  MsgOut("Reading in configuration")
+  objINIFile = open(strConf_File, "r")
+  strLines = objINIFile.readlines()
+  objINIFile.close()
+
+  for strLine in strLines:
+    strLine = strLine.strip()
+    iCommentLoc = strLine.find("#")
+    if iCommentLoc > -1:
+      strLine = strLine[:iCommentLoc].strip()
+    else:
+      strLine = strLine.strip()
+    if "=" in strLine:
+      strConfParts = strLine.split("=")
+      strVarName = strConfParts[0].strip()
+      strValue = strConfParts[1].strip()
+      dictConfig[strVarName] = strValue
+      if strVarName == "include":
+        MsgOut("Found include directive: {}".format(strValue))
+        strValue = strValue.replace("\\", "/")
+        if strValue[:1] == "/" or strValue[1:3] == ":/":
+          MsgOut("include directive is absolute path, using as is")
+        else:
+          strValue = strBaseDir + strValue
+          MsgOut("include directive is relative path,"
+                   " appended base directory. {}".format(strValue))
+        if os.path.isfile(strValue):
+          MsgOut("file is valid")
+          objINIFile = open(strValue, "r")
+          strLines += objINIFile.readlines()
+          objINIFile.close()
+        else:
+          MsgOut("invalid file in include directive")
+
+  MsgOut("Done processing configuration, moving on")
+  return dictConfig
 
 def isInt(CheckValue):
   """
@@ -364,6 +450,7 @@ def DefineMenu():
   dictMenu["clip"]   = "put specified key value on the clipboard"
   dictMenu["passwd"] = "Change the password"
   dictMenu["totp"]   = "Displays TOTP code for the secret stored at the specified key"
+  dictMenu["create"] = "Create a configuration file based on current environment"
 
 def DefineColors():
   """
@@ -728,7 +815,11 @@ def ProcessCMD(objCmd):
         print("Successfully reset the store")
       else:
         print("Failed to reset the store")
-
+  elif strCmd == "create":
+    if(CreateConfig()):
+      print("Successfully created configuration file {}. Please check it out and modify as needed.".format(strConf_File))
+    else:
+      print("Failed to create a configuration file")
   elif strCmd[:4] == "clip":
     if not bClippy:
       print("Clip is not supported on your system")
@@ -783,7 +874,10 @@ def FetchEnv(strVarName):
   if os.getenv(strVarName) != "" and os.getenv(strVarName) is not None:
     return os.getenv(strVarName)
   else:
-    return ""
+    if strVarName in dictConfig:
+      return dictConfig[strVarName]
+    else:
+      return ""
 
 def VaultInit():
   """
@@ -956,7 +1050,7 @@ def AddFileItem(strKey, strValue, bConf=True, strPass=""):
 
   tmpResponse = GetFileHandle(strFileOut, "w")
   if isinstance(tmpResponse, str):
-    MsgOut(tmpResponse)
+    print(tmpResponse)
     return False
   else:
     objFileOut = tmpResponse
@@ -1051,7 +1145,7 @@ def FetchFileItem(strKey):
   strFileIn = strVault + strKey
   tmpResponse = GetFileHandle(strFileIn, "r")
   if isinstance(tmpResponse, str):
-    MsgOut(tmpResponse)
+    print(tmpResponse)
     return False
   else:
     objFileIn = tmpResponse
@@ -1204,9 +1298,13 @@ def main():
   global strBaseDir
   global strTable
   global bQuiet
+  global dictConfig
+  global strConf_File
 
   DefineMenu()
   DefineColors()
+
+  dictConfig = {}
 
   strQuiet = FetchEnv("QUIET")
   if strQuiet.lower() == "true":
@@ -1214,8 +1312,14 @@ def main():
   else:
     bQuiet = False
 
-
   lstSysArg = sys.argv
+  iLoc = lstSysArg[0].rfind(".")
+  strConf_File = lstSysArg[0][:iLoc] + ".ini"
+
+  if os.path.isfile(strConf_File):
+    dictConfig = processConf(strConf_File)
+    MsgOut("Configuration file has been processed")
+
 
   strBaseDir = os.path.dirname(sys.argv[0])
   strRealPath = os.path.realpath(sys.argv[0])
@@ -1296,18 +1400,18 @@ def main():
       del lstSysArg[1]
 
   VaultInit()
-  ListCount()
   if len(lstSysArg) > 1:
+    ListCount()
     bCont = False
     del lstSysArg[0]
     ProcessCMD(lstSysArg)
   else:
     if bQuiet:
       bCont = False
+      ListCount()
       DisplayHelp()
     else:
       bCont = True
-
 
   while bCont:
     ListCount()
