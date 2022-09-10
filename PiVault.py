@@ -32,7 +32,9 @@ import re
 
 
 # Global constants
-bDefHide = False
+iShowtime = 15    # TODO Add to env
+bAutoHide = True  # TODO Add to env
+bDefHide = False  # TODO Use in GUI
 strDefValueColor = "red"
 strDefStore = "files"
 strDefVault = "VaultData"
@@ -42,6 +44,9 @@ strCheckFile = "VaultInit"
 lstDBTypes = ["sqlite", "mysql", "postgres", "mssql"]
 bLoggedIn = False
 dictComponents = {}
+iTimer = 0
+strICOFile = "PieLock.ico"
+
 #functions
 
 def CheckDependency(Module):
@@ -112,6 +117,190 @@ if not CheckDependency("maskpass")["success"]:
 import maskpass
 
 # End imports
+
+
+def FetchValue(strKey):  # TODO delete after integrating ShowGUI
+  pass
+
+def ShowGUI():
+  global iTimer
+
+  import os
+  try:
+    import tkinter as tk
+  except ImportError:
+    print("unable to start GUI")
+    return
+
+  def ShowTOTP():
+    pass
+
+  def Config():
+    pass
+
+  def MyTimer():
+    global iTimer
+
+    iTimer -= 1
+    objCountdown.grid(row=2, column=1)
+    objCountdown.config(text="Auto hiding in {} seconds".format(iTimer))
+    if iTimer < iShowtime/3:
+      objCountdown.config(bg="pink", fg="black")
+    if btnShow.cget("text") == "Hide":
+      objMainWin.after(1000, MyTimer)
+    else:
+      objCountdown.config(text="")
+      objCountdown.grid_remove()
+
+  def Login():
+    btnLogin.grid_remove
+    objPWDNote.grid_remove()
+    objPWDLabel.grid(row=0, column=6, padx=20)
+    objPWDText.grid(row=1, column=6, padx=20)
+    btnAuth.grid(row=2, column=6, padx=20)
+
+  def Auth():
+    objPWDLabel.grid_remove()
+    objPWDText.grid_remove()
+    btnAuth.grid_remove()
+    objPWDNote.config(bg="lightgreen", fg="black", text="Password Good")
+    objPWDNote.grid(row=0, column=6)
+
+  def CopyValue():
+    lstSel = objItemsLB.curselection()
+    if len(lstSel) > 0:
+      strSel = objItemsLB.get(lstSel[0])
+    else:
+      strSel = "nothing"
+    strValue = FetchValue(strSel)
+    objMainWin.clipboard_clear()
+    objMainWin.clipboard_append(strValue)
+
+  def ShowValue():
+    global iTimer
+    if btnShow.cget("text") == "Show":
+      lstSel = objItemsLB.curselection()
+      if len(lstSel) > 0:
+        strSel = objItemsLB.get(lstSel[0])
+      else:
+        strSel = "nothing"
+      btnAdd.config(text="Update")
+      btnShow.config(text="Hide")
+      objKeyText.delete(0, tk.END)
+      objKeyText.insert(0, strSel)
+      objValueText.delete(0, tk.END)
+      objValueText.insert(0, FetchValue(strSel))
+      objValueText.config(show="")
+      if bAutoHide:
+        iTimer = iShowtime
+        objMainWin.after(1000, MyTimer)
+        objMainWin.after(iShowtime*1000, ShowValue)
+    else:
+      objMsg1.config(text=strTestMsg)
+      btnShow.config(text="Show")
+      btnAdd.config(text="Add")
+      objKeyText.delete(0, tk.END)
+      objValueText.delete(0, tk.END)
+      objValueText.config(show="*")
+      objCountdown.grid_remove()
+
+  def AddKey():
+    strName = objKeyText.get()
+    strEmail = objValueText.get()
+    strMsg = " {} = {}".format(strName, strEmail)
+    objMsg1.config(text=strMsg)
+
+  objMainWin = tk.Tk()
+  objMainWin.title("Demo")
+  iWidth = 670
+  iHeight = 320
+  ixMargin = 50
+  iyMargin = 50
+  iScreenW = objMainWin.winfo_screenwidth()
+  iScreenH = objMainWin.winfo_screenheight()
+  ixMargin = int(iScreenW/2 - iWidth/2)
+  iyMargin = int(iScreenH/2 - iHeight/2)
+  objMainWin.attributes("-alpha", 0.95)
+  objMainWin.resizable(width=False, height=False)
+  # setting the size of the window
+  objMainWin.geometry(
+      "{}x{}+{}+{}".format(iWidth, iHeight, ixMargin, iyMargin))
+
+  btnAdd = tk.Button(objMainWin, text="Add", width=8,
+                     height=1, command=AddKey)
+  btnAdd.grid(row=0, column=3, rowspan=2, padx=10)
+
+  btnShow = tk.Button(objMainWin, text="Show", width=8,
+                      height=1, command=ShowValue)
+  btnShow.grid(row=2, column=3, padx=10)
+
+  btnCopy = tk.Button(objMainWin, text="Copy", width=8,
+                      height=1, command=CopyValue)
+  btnCopy.grid(row=3, column=3, padx=10)
+
+  btnTOTP = tk.Button(objMainWin, text="TOTP", width=8,
+                      height=1, command=ShowTOTP)
+  btnTOTP.grid(row=4, column=3, padx=10)
+
+  btnConfig = tk.Button(objMainWin, text="Config", width=8,
+                        height=1, command=Config)
+  btnConfig.grid(row=4, column=6)
+
+  btnLogin = tk.Button(objMainWin, text="Login", width=8,
+                       height=1, command=Login)
+  btnLogin.grid(row=2, column=6, padx=45)
+
+  btnAuth = tk.Button(objMainWin, text="Authenticate", width=10,
+                      height=1, command=Auth)
+
+  btnChgPwd = tk.Button(objMainWin, text="Change Password", width=15,
+                        height=1, command=ShowTOTP)
+  btnChgPwd.grid(row=3, column=6, padx=0)
+
+  btnDel = tk.Button(objMainWin, text="Delete", width=8,
+                     height=1, command=ShowTOTP)
+  btnDel.grid(row=5, column=3, padx=10)
+
+  btnReset = tk.Button(objMainWin, text="DB Wipe", width=10,
+                       height=1, command=ShowTOTP)
+  btnReset.grid(row=5, column=6, padx=0)
+
+  objPWDLabel = tk.Label(objMainWin, text="Please enter your password")
+  objPWDText = tk.Entry(objMainWin, width=25, show="*")
+
+  tk.Label(objMainWin, text="Key").grid(row=0, column=0, padx=10, sticky=tk.E)
+  tk.Label(objMainWin, text="Value").grid(
+      row=1, column=0, padx=10, sticky=tk.E)
+  objKeyText = tk.Entry(objMainWin, width=50)
+  objKeyText.grid(row=0, column=1)
+  objValueText = tk.Entry(objMainWin, width=50, show="*")
+  objValueText.grid(row=1, column=1)
+
+  objSB_Items = tk.Scrollbar(objMainWin)
+  objSB_Items.grid(row=3, column=2, rowspan=6, sticky=tk.NS)
+
+  objItemsLB = tk.Listbox(objMainWin, yscrollcommand=objSB_Items.set, width=50)
+  for strItem in dictMenu.keys():
+    objItemsLB.insert(tk.END, strItem)
+
+  objItemsLB.grid(row=3, column=1, rowspan=6)
+  objSB_Items.config(command=objItemsLB.yview)
+
+  strTestMsg = "This is a test message. If it was a real message it would make sense"
+  objMsg1 = tk.Message(objMainWin, text=strTestMsg, width=400)
+  objMsg1.config(bg="lightblue", fg="black")
+  objMsg1.place(x=20, y=iHeight - 50)
+
+  objPWDNote = tk.Message(objMainWin, text="Please Log in", width=400)
+  objPWDNote.config(bg="pink", fg="black")
+  objPWDNote.grid(row=0, column=6)
+
+  objCountdown = tk.Message(objMainWin, text="", width=200)
+  objCountdown.config(bg="lightgreen", fg="black")
+
+  if os.path.isfile(strICOFile):
+    objMainWin.iconbitmap(strICOFile)
+  objMainWin.mainloop()
 
 def CreateConfig():
   """
