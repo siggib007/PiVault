@@ -32,15 +32,15 @@ import re
 
 
 # Global constants
-iShowtime = 15    # TODO Add to env
-bAutoHide = True  # TODO Add to env
-bDefHide = False  # TODO Use in GUI
+iDefShowTime = 30    # Default time show password in GUI
+bDefAutoHide = True  # Default to auto hide password after show time expires
+bDefHide = False     # Default hide password while typing
 strDefValueColor = "red"
 strDefStore = "files"
 strDefVault = "VaultData"
 strDefTable = "tblVault"
 strCheckValue = "This is a simple secrets vault"
-strCheckFile = "VaultInit"
+strCheckKey = "VaultInit"
 lstDBTypes = ["sqlite", "mysql", "postgres", "mssql"]
 bLoggedIn = False
 dictComponents = {}
@@ -118,22 +118,16 @@ import maskpass
 
 # End imports
 
-
-def FetchValue(strKey):  # TODO delete after integrating ShowGUI
-  pass
-
 def ShowGUI():
   global iTimer
 
   import os
   try:
     import tkinter as tk
+    from tkinter import messagebox as mb
   except ImportError:
     print("unable to start GUI")
     return
-
-  def ShowTOTP():
-    pass
 
   def Config():
     pass
@@ -144,12 +138,12 @@ def ShowGUI():
     iTimer -= 1
     objCountdown.grid(row=2, column=1)
     objCountdown.config(text="Auto hiding in {} seconds".format(iTimer))
-    if iTimer < iShowtime/3:
+    if iTimer < iShowTime/3:
       objCountdown.config(bg="pink", fg="black")
     if btnShow.cget("text") == "Hide":
       objMainWin.after(1000, MyTimer)
     else:
-      objCountdown.config(text="")
+      objCountdown.config(text="", bg="lightgreen", fg="black")
       objCountdown.grid_remove()
 
   def Login():
@@ -157,14 +151,19 @@ def ShowGUI():
     objPWDNote.grid_remove()
     objPWDLabel.grid(row=0, column=6, padx=20)
     objPWDText.grid(row=1, column=6, padx=20)
+    objPWDText.delete(0, tk.END)
+    objPWDText.insert(0, strPWD)
     btnAuth.grid(row=2, column=6, padx=20)
 
   def Auth():
     objPWDLabel.grid_remove()
     objPWDText.grid_remove()
     btnAuth.grid_remove()
-    objPWDNote.config(bg="lightgreen", fg="black", text="Password Good")
     objPWDNote.grid(row=0, column=6)
+    if (UserLogin()):
+      objPWDNote.config(bg="lightgreen", fg="black", text="Logged in")
+    else:
+      objPWDNote.config(bg="pink", fg="black", text="Invalid Password")
 
   def CopyValue():
     lstSel = objItemsLB.curselection()
@@ -172,12 +171,14 @@ def ShowGUI():
       strSel = objItemsLB.get(lstSel[0])
     else:
       strSel = "nothing"
-    strValue = FetchValue(strSel)
+    strValue = FetchItem(strSel)
     objMainWin.clipboard_clear()
     objMainWin.clipboard_append(strValue)
 
   def ShowValue():
     global iTimer
+    global objHide
+
     if btnShow.cget("text") == "Show":
       lstSel = objItemsLB.curselection()
       if len(lstSel) > 0:
@@ -189,29 +190,82 @@ def ShowGUI():
       objKeyText.delete(0, tk.END)
       objKeyText.insert(0, strSel)
       objValueText.delete(0, tk.END)
-      objValueText.insert(0, FetchValue(strSel))
+      objValueText.insert(0, FetchItem(strSel))
       objValueText.config(show="")
       if bAutoHide:
-        iTimer = iShowtime
+        iTimer = iShowTime
         objMainWin.after(1000, MyTimer)
-        objMainWin.after(iShowtime*1000, ShowValue)
+        objHide = objMainWin.after(iShowTime*1000, ShowValue)
     else:
-      objMsg1.config(text=strTestMsg)
+      objMsg1.config(text=strMsg)
       btnShow.config(text="Show")
       btnAdd.config(text="Add")
       objKeyText.delete(0, tk.END)
       objValueText.delete(0, tk.END)
-      objValueText.config(show="*")
+      if bHideValueIn:
+        objValueText.config(show="*")
       objCountdown.grid_remove()
+      objMainWin.after_cancel(objHide)
+      iTimer = 0
+
+  def ShTOTP():
+    lstSel = objItemsLB.curselection()
+    if len(lstSel) > 0:
+      strSel = objItemsLB.get(lstSel[0])
+    else:
+      strSel = "nothing"
+    strCode = ShowTOTP(strSel)
+    objCountdown.grid(row=2, column=1)
+    objCountdown.config(text="Your TOTP Code is: {}".format(strCode))
+    objCountdown.config(bg="lightgreen", fg="black")
+    objMainWin.clipboard_clear()
+    objMainWin.clipboard_append(strCode)
+
+    if bAutoHide:
+      objMainWin.after(iShowTime*1000, ClearTOTP)
+
+  def ClearTOTP():
+    objCountdown.config(text="")
+    objCountdown.grid_remove()
 
   def AddKey():
-    strName = objKeyText.get()
-    strEmail = objValueText.get()
-    strMsg = " {} = {}".format(strName, strEmail)
+    strKey = objKeyText.get()
+    strValue = objValueText.get()
+    if AddItem(strKey, strValue, False):
+      strMsg ="key {} successfully created".format(strKey)
+      ListCount()
+      objItemsLB.insert(tk.END, strKey)
+    else:
+      strMsg ="Failed to create key {}".format(strKey)
+    objMsg1.config(text=strMsg)
+    objKeyText.delete(0, tk.END)
+    objValueText.delete(0, tk.END)
+
+  def ChgPWD():
+    ChangePWD()
+
+  def ItemDel():
+    lstSel = objItemsLB.curselection()
+    if len(lstSel) > 0:
+      strSel = objItemsLB.get(lstSel[0])
+    else:
+      strSel = "nothing"
+    if (DelItem(strSel)):
+      strMsg = "Deleted {} successfully".format(strSel)
+      objItemsLB.delete(lstSel)
+    else:
+      strMsg = "Deleting {} failed".format(strSel)
     objMsg1.config(text=strMsg)
 
+  def DBWipe():
+    strReponse = mb.askquestion(
+        "Wipe the database", "Are you sure you want to completely nuke the database? \nTHIS ACTION IS IRREVERSABLE")
+    if strReponse == "yes":
+      ResetStore()
+      objMainWin.destroy()
+
   objMainWin = tk.Tk()
-  objMainWin.title("Demo")
+  objMainWin.title("PiVault")
   iWidth = 670
   iHeight = 320
   ixMargin = 50
@@ -222,7 +276,6 @@ def ShowGUI():
   iyMargin = int(iScreenH/2 - iHeight/2)
   objMainWin.attributes("-alpha", 0.95)
   objMainWin.resizable(width=False, height=False)
-  # setting the size of the window
   objMainWin.geometry(
       "{}x{}+{}+{}".format(iWidth, iHeight, ixMargin, iyMargin))
 
@@ -239,7 +292,7 @@ def ShowGUI():
   btnCopy.grid(row=3, column=3, padx=10)
 
   btnTOTP = tk.Button(objMainWin, text="TOTP", width=8,
-                      height=1, command=ShowTOTP)
+                      height=1, command=ShTOTP)
   btnTOTP.grid(row=4, column=3, padx=10)
 
   btnConfig = tk.Button(objMainWin, text="Config", width=8,
@@ -254,15 +307,15 @@ def ShowGUI():
                       height=1, command=Auth)
 
   btnChgPwd = tk.Button(objMainWin, text="Change Password", width=15,
-                        height=1, command=ShowTOTP)
+                        height=1, command=ChgPWD)
   btnChgPwd.grid(row=3, column=6, padx=0)
 
   btnDel = tk.Button(objMainWin, text="Delete", width=8,
-                     height=1, command=ShowTOTP)
+                     height=1, command=ItemDel)
   btnDel.grid(row=5, column=3, padx=10)
 
   btnReset = tk.Button(objMainWin, text="DB Wipe", width=10,
-                       height=1, command=ShowTOTP)
+                       height=1, command=DBWipe)
   btnReset.grid(row=5, column=6, padx=0)
 
   objPWDLabel = tk.Label(objMainWin, text="Please enter your password")
@@ -273,21 +326,28 @@ def ShowGUI():
       row=1, column=0, padx=10, sticky=tk.E)
   objKeyText = tk.Entry(objMainWin, width=50)
   objKeyText.grid(row=0, column=1)
-  objValueText = tk.Entry(objMainWin, width=50, show="*")
+  objValueText = tk.Entry(objMainWin, width=50)
+  if bHideValueIn:
+    objValueText.config(show="*")
   objValueText.grid(row=1, column=1)
 
   objSB_Items = tk.Scrollbar(objMainWin)
   objSB_Items.grid(row=3, column=2, rowspan=6, sticky=tk.NS)
 
   objItemsLB = tk.Listbox(objMainWin, yscrollcommand=objSB_Items.set, width=50)
-  for strItem in dictMenu.keys():
-    objItemsLB.insert(tk.END, strItem)
+  for strItem in lstVault:
+    if strItem != strCheckKey:
+      objItemsLB.insert(tk.END, strItem)
 
   objItemsLB.grid(row=3, column=1, rowspan=6)
   objSB_Items.config(command=objItemsLB.yview)
 
-  strTestMsg = "This is a test message. If it was a real message it would make sense"
-  objMsg1 = tk.Message(objMainWin, text=strTestMsg, width=400)
+  strMsg = "Welcome to the PiVault GUI, a simple secrets vault encrytping with AES-256 using MODE_CBC"
+  strMsg += "\nThis is running under Python Version {} ".format(strVersion)
+  strMsg += "using {} ".format(strStore)
+  if strStore != "files":
+    strMsg += "on {}".format(FetchEnv("HOST"))
+  objMsg1 = tk.Message(objMainWin, text=strMsg, width=iWidth-50)
   objMsg1.config(bg="lightblue", fg="black")
   objMsg1.place(x=20, y=iHeight - 50)
 
@@ -297,6 +357,10 @@ def ShowGUI():
 
   objCountdown = tk.Message(objMainWin, text="", width=200)
   objCountdown.config(bg="lightgreen", fg="black")
+  if strPWD != "":
+    objPWDText.delete(0, tk.END)
+    objPWDText.insert(0, strPWD)
+    Auth()
 
   if os.path.isfile(strICOFile):
     objMainWin.iconbitmap(strICOFile)
@@ -640,6 +704,7 @@ def DefineMenu():
   dictMenu["passwd"] = "Change the password"
   dictMenu["totp"]   = "Displays TOTP code for the secret stored at the specified key"
   dictMenu["create"] = "Create a configuration file based on current environment"
+  dictMenu["gui"]    = "Starts the GUI"
 
 def DefineColors():
   """
@@ -771,17 +836,19 @@ def UserLogin():
     if len(lstVault) > 0:
       if FetchItem(lstVault[0]) == "Failed to decrypt":
         print("unable to decrypt vault, please try to login again")
+        bLoggedIn = False
         return False
-    AddItem(strCheckFile, strCheckValue)
+    AddItem(strCheckKey, strCheckValue)
     MsgOut("Vault Initialized")
-    bStatus = True
+    bLoggedIn = True
     return True
   elif bStatus:
     MsgOut("Password is good")
-    bStatus = True
+    bLoggedIn = True
     return True
   else:
     print("unable to decrypt vault, please try again")
+    bLoggedIn = False
     return False
 
 def Fetch2Clip(strKey):
@@ -838,7 +905,7 @@ def ListItems():
     for strItem in lstVault:
       if isinstance(strItem,bytes):
         strItem = strItem.decode("UTF-8")
-      if strItem != strCheckFile:
+      if strItem != strCheckKey:
         print("{}".format(strItem))
 
 def CheckVault():
@@ -849,8 +916,8 @@ def CheckVault():
   Returns:
     true/false indicating if the vault is good or not
   """
-  if strCheckFile in lstVault:
-    strInitstr = FetchItem(strCheckFile)
+  if strCheckKey in lstVault:
+    strInitstr = FetchItem(strCheckKey)
     if strInitstr == strCheckValue:
       return True
     else:
@@ -1047,6 +1114,9 @@ def ProcessCMD(objCmd):
           MsgOut("Your code is on the clipboard as well")
       else:
         print("failed to generate code")
+  elif strCmd == "gui":
+    bQuiet = True
+    ShowGUI()
   else:
     print("Not implemented")
 
@@ -1203,14 +1273,14 @@ def ListCount():
   else:
     print("Unknown store type {} in ListCount".format(strStore))
 
-  if strCheckFile in lstVault:
+  if strCheckKey in lstVault:
     iVaultLen = len(lstVault) - 1
   else:
     iVaultLen = len(lstVault)
   if iVaultLen > 0:
     MsgOut("Vault is initialized and contains {} entries".format(iVaultLen))
   else:
-    if strCheckFile in lstVault:
+    if strCheckKey in lstVault:
       print("Vault is inilized with no entries")
     else:
       print("Vault is uninilized, need to add an item to initialize")
@@ -1413,11 +1483,14 @@ def DelItem(strKey):
       except PermissionError:
         print("unable to delete file {}, "
               "permission denied.".format(strFileName))
+        return False
       except FileNotFoundError:
         print("unable to delete file {}, "
               "Issue with the path".format(strFileName))
+        return False
   elif strStore.lower() == "redis":
     objRedis.delete(strKey)
+    return True
   elif strStore.lower() in lstDBTypes:
     return SQLOp("delete",strKey)
   else:
@@ -1489,6 +1562,9 @@ def main():
   global bQuiet
   global dictConfig
   global strConf_File
+  global iShowTime
+  global bAutoHide
+  global strVersion
 
   DefineMenu()
   DefineColors()
@@ -1555,11 +1631,18 @@ def main():
 
     import pyotp
 
+  iShowTime = FetchEnv("SHOWTIME")
+  strAutoHide = FetchEnv("AUTOHIDE")
   strStore = FetchEnv("STORE")
   strPWD = FetchEnv("VAULTPWD")
   strHideIn = FetchEnv("HIDEINPUT")
   strValueColor = FetchEnv("VALUECOLOR")
   strTable = FetchEnv("TABLE")
+
+  if isInt(iShowTime):
+    iShowTime = int(iShowTime)
+  else:
+    iShowTime = iDefShowTime
   if strStore == "":
     MsgOut("No store type environment, defaulting to {} store".format(strDefStore))
     strStore = strDefStore
@@ -1567,6 +1650,14 @@ def main():
   if strTable == "":
     MsgOut("No Table name in environment, defaulting to {}".format(strDefTable))
     strTable = strDefTable
+
+  if strAutoHide == "":
+    bAutoHide = bDefAutoHide
+  elif strAutoHide.lower() == "true":
+    bAutoHide = True
+  else:
+    bAutoHide = False
+
 
   if strHideIn == "":
     bHideValueIn = bDefHide
