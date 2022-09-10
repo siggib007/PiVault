@@ -169,11 +169,12 @@ def ShowGUI():
     lstSel = objItemsLB.curselection()
     if len(lstSel) > 0:
       strSel = objItemsLB.get(lstSel[0])
+      strValue = FetchItem(strSel)
+      objMainWin.clipboard_clear()
+      objMainWin.clipboard_append(strValue)
     else:
-      strSel = "nothing"
-    strValue = FetchItem(strSel)
-    objMainWin.clipboard_clear()
-    objMainWin.clipboard_append(strValue)
+      strMsg = "Please select a value"
+      objMsg1.config(text=strMsg)
 
   def ShowValue():
     global iTimer
@@ -183,14 +184,14 @@ def ShowGUI():
       lstSel = objItemsLB.curselection()
       if len(lstSel) > 0:
         strSel = objItemsLB.get(lstSel[0])
+        objValueText.delete(0, tk.END)
+        objValueText.insert(0, FetchItem(strSel))
       else:
         strSel = "nothing"
       btnAdd.config(text="Update")
       btnShow.config(text="Hide")
       objKeyText.delete(0, tk.END)
       objKeyText.insert(0, strSel)
-      objValueText.delete(0, tk.END)
-      objValueText.insert(0, FetchItem(strSel))
       objValueText.config(show="")
       if bAutoHide:
         iTimer = iShowTime
@@ -213,7 +214,10 @@ def ShowGUI():
     if len(lstSel) > 0:
       strSel = objItemsLB.get(lstSel[0])
     else:
-      strSel = "nothing"
+      objCountdown.config(text="Please select a key!!")
+      objCountdown.config(bg="pink", fg="black")
+      objCountdown.grid(row=2, column=1)
+      return
     strCode = ShowTOTP(strSel)
     objCountdown.grid(row=2, column=1)
     objCountdown.config(text="Your TOTP Code is: {}".format(strCode))
@@ -248,13 +252,13 @@ def ShowGUI():
     lstSel = objItemsLB.curselection()
     if len(lstSel) > 0:
       strSel = objItemsLB.get(lstSel[0])
+      if (DelItem(strSel)):
+        strMsg = "Deleted {} successfully".format(strSel)
+        objItemsLB.delete(lstSel)
+      else:
+        strMsg = "Deleting {} failed".format(strSel)
     else:
-      strSel = "nothing"
-    if (DelItem(strSel)):
-      strMsg = "Deleted {} successfully".format(strSel)
-      objItemsLB.delete(lstSel)
-    else:
-      strMsg = "Deleting {} failed".format(strSel)
+      strMsg = "Please select a key to delete"
     objMsg1.config(text=strMsg)
 
   def DBWipe():
