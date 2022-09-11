@@ -233,15 +233,28 @@ def ShowGUI():
     objCountdown.grid_remove()
 
   def AddKey():
+    bCont = True
+    bUpdate = False
     strKey = objKeyText.get()
     strValue = objValueText.get()
-    if AddItem(strKey, strValue, False):
-      strMsg ="key {} successfully created".format(strKey)
-      ListCount()
-      objItemsLB.insert(tk.END, strKey)
-    else:
-      strMsg ="Failed to create key {}".format(strKey)
-    objMsg1.config(text=strMsg)
+    if strKey in lstVault and btnAdd.cget("text") == "Add":
+      strResp = mb.askquestion("Overwrite entry","key {} already exists. Overwrite it?".format(strKey))
+      if strResp != "yes":
+        bCont = False
+        bUpdate = True
+    if btnAdd.cget("text") == "Update" or strKey in lstVault:
+      bUpdate= True
+    if bCont:
+      if AddItem(strKey, strValue, False):
+        lstVault.append(strKey)
+        strMsg ="key {} successfully created".format(strKey)
+        if not bUpdate:
+          objItemsLB.insert(tk.END, strKey)
+        strLBCount = "There are {} entries".format(objItemsLB.size())
+        objLBMsg.config(text=strLBCount)
+      else:
+        strMsg ="Failed to create key {}".format(strKey)
+      objMsg1.config(text=strMsg)
     objKeyText.delete(0, tk.END)
     objValueText.delete(0, tk.END)
 
@@ -255,6 +268,8 @@ def ShowGUI():
       if (DelItem(strSel)):
         strMsg = "Deleted {} successfully".format(strSel)
         objItemsLB.delete(lstSel)
+        strLBCount = "There are {} entries".format(objItemsLB.size())
+        objLBMsg.config(text=strLBCount)
       else:
         strMsg = "Deleting {} failed".format(strSel)
     else:
@@ -358,6 +373,11 @@ def ShowGUI():
   objPWDNote = tk.Message(objMainWin, text="Please Log in", width=400)
   objPWDNote.config(bg="pink", fg="black")
   objPWDNote.grid(row=0, column=6)
+
+  strLBCount = "There are {} entries".format(objItemsLB.size())
+  objLBMsg = tk.Message(objMainWin, width=150, bg="white",
+                        fg="black", text=strLBCount)
+  objLBMsg.grid(column=1,row=9,sticky=tk.W)
 
   objCountdown = tk.Message(objMainWin, text="", width=200)
   objCountdown.config(bg="lightgreen", fg="black")
@@ -973,6 +993,7 @@ def ProcessCMD(objCmd):
     nothing
   """
   global bCont
+  global bQuiet
 
   strCmd = ""
   lstCmd = []
