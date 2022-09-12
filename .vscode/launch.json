@@ -12,9 +12,9 @@
       "console": "integratedTerminal",
       "justMyCode": true,
       //"args": ["add","foo","bar"],
-      "env": 
+      "env":
       {
-        "DOPPLER_ENV": "1"
+        //"DOPPLER_ENV": "1"
       }
     }
   ]

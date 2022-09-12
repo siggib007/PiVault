@@ -156,14 +156,33 @@ def ShowGUI():
     btnAuth.grid(row=2, column=6, padx=20)
 
   def Auth():
+    if objPWDText.get() == "":
+      return
     objPWDLabel.grid_remove()
     objPWDText.grid_remove()
     btnAuth.grid_remove()
-    objPWDNote.grid(row=0, column=6)
-    if (UserLogin()):
-      objPWDNote.config(bg="lightgreen", fg="black", text="Logged in")
+    if btnAuth.cget("text") == "Authenticate":
+      global strPWD
+      objPWDNote.grid(row=0, column=6)
+      strPWD = objPWDText.get()
+      if (UserLogin()):
+        objPWDNote.config(bg="lightgreen", fg="black", text="Logged in")
+      else:
+        objPWDNote.config(bg="pink", fg="black", text="Invalid Password")
+    elif btnAuth.cget("text") == "Change":
+      if(ChangePWD(objPWDText.get())):
+        strMsg = "Password change successful"
+      else:
+        strMsg = ("Password changed failed on {} of {} entries. "
+        "The following keys failed {}".format(
+            len(lstFailed), len(lstVault), (lstFailed)))
+      objMsg1.config(text=strMsg)
+      btnAuth.config(text="Authenticate")
+      btnChgPwd.grid(row=3, column=6, padx=0)
+      Auth()
     else:
-      objPWDNote.config(bg="pink", fg="black", text="Invalid Password")
+      mb.showerror("Unexpected", "I have no idea how to deal with btnAuth having a text of {}".format(
+          btnAuth.cget("text")))
 
   def CopyValue():
     lstSel = objItemsLB.curselection()
@@ -184,8 +203,11 @@ def ShowGUI():
       lstSel = objItemsLB.curselection()
       if len(lstSel) > 0:
         strSel = objItemsLB.get(lstSel[0])
+        strValue = FetchItem(strSel)
+        if strValue == False:
+          strValue = "Failed to fetch value"
         objValueText.delete(0, tk.END)
-        objValueText.insert(0, FetchItem(strSel))
+        objValueText.insert(0, strValue)
       else:
         strSel = "nothing"
       btnAdd.config(text="Update")
@@ -244,22 +266,29 @@ def ShowGUI():
         bUpdate = True
     if btnAdd.cget("text") == "Update" or strKey in lstVault:
       bUpdate= True
+    if not bLoggedIn:
+      bCont = False
+      objMsg1.config(text="You are not logged in")
     if bCont:
       if AddItem(strKey, strValue, False):
         lstVault.append(strKey)
-        strMsg ="key {} successfully created".format(strKey)
+        strMsg ="key {} successfully created or updated".format(strKey)
         if not bUpdate:
           objItemsLB.insert(tk.END, strKey)
         strLBCount = "There are {} entries".format(objItemsLB.size())
         objLBMsg.config(text=strLBCount)
+        objKeyText.delete(0, tk.END)
+        objValueText.delete(0, tk.END)
       else:
         strMsg ="Failed to create key {}".format(strKey)
       objMsg1.config(text=strMsg)
-    objKeyText.delete(0, tk.END)
-    objValueText.delete(0, tk.END)
 
   def ChgPWD():
-    ChangePWD()
+    objPWDLabel.config(text="New Password")
+    Login()
+    objPWDText.delete(0, tk.END)
+    btnAuth.config(text="Change")
+    btnChgPwd.grid_remove()
 
   def ItemDel():
     lstSel = objItemsLB.curselection()
@@ -283,112 +312,133 @@ def ShowGUI():
       ResetStore()
       objMainWin.destroy()
 
-  objMainWin = tk.Tk()
-  objMainWin.title("PiVault")
-  iWidth = 670
-  iHeight = 320
-  ixMargin = 50
-  iyMargin = 50
-  iScreenW = objMainWin.winfo_screenwidth()
-  iScreenH = objMainWin.winfo_screenheight()
-  ixMargin = int(iScreenW/2 - iWidth/2)
-  iyMargin = int(iScreenH/2 - iHeight/2)
-  objMainWin.attributes("-alpha", 0.95)
-  objMainWin.resizable(width=False, height=False)
-  objMainWin.geometry(
-      "{}x{}+{}+{}".format(iWidth, iHeight, ixMargin, iyMargin))
+  def GUILayout():
+    global objMainWin
+    global objCountdown
+    global btnShow
+    global btnLogin
+    global objPWDNote
+    global objPWDLabel
+    global objPWDText
+    global btnAuth
+    global objItemsLB
+    global objMsg1
+    global objValueText
+    global btnAdd
+    global objKeyText
+    global strMsg
+    global objLBMsg
+    global btnChgPwd
 
-  btnAdd = tk.Button(objMainWin, text="Add", width=8,
-                     height=1, command=AddKey)
-  btnAdd.grid(row=0, column=3, rowspan=2, padx=10)
 
-  btnShow = tk.Button(objMainWin, text="Show", width=8,
-                      height=1, command=ShowValue)
-  btnShow.grid(row=2, column=3, padx=10)
+    objMainWin = tk.Tk()
+    objMainWin.title("PiVault")
+    iWidth = 670
+    iHeight = 320
+    ixMargin = 50
+    iyMargin = 50
+    iScreenW = objMainWin.winfo_screenwidth()
+    iScreenH = objMainWin.winfo_screenheight()
+    ixMargin = int(iScreenW/2 - iWidth/2)
+    iyMargin = int(iScreenH/2 - iHeight/2)
+    objMainWin.attributes("-alpha", 0.95)
+    objMainWin.resizable(width=False, height=False)
+    objMainWin.geometry(
+        "{}x{}+{}+{}".format(iWidth, iHeight, ixMargin, iyMargin))
 
-  btnCopy = tk.Button(objMainWin, text="Copy", width=8,
-                      height=1, command=CopyValue)
-  btnCopy.grid(row=3, column=3, padx=10)
+    btnAdd = tk.Button(objMainWin, text="Add", width=8,
+                      height=1, command=AddKey)
+    btnAdd.grid(row=0, column=3, rowspan=2, padx=10)
 
-  btnTOTP = tk.Button(objMainWin, text="TOTP", width=8,
-                      height=1, command=ShTOTP)
-  btnTOTP.grid(row=4, column=3, padx=10)
+    btnShow = tk.Button(objMainWin, text="Show", width=8,
+                        height=1, command=ShowValue)
+    btnShow.grid(row=2, column=3, padx=10)
 
-  btnConfig = tk.Button(objMainWin, text="Config", width=8,
-                        height=1, command=Config)
-  btnConfig.grid(row=4, column=6)
+    btnCopy = tk.Button(objMainWin, text="Copy", width=8,
+                        height=1, command=CopyValue)
+    btnCopy.grid(row=3, column=3, padx=10)
 
-  btnLogin = tk.Button(objMainWin, text="Login", width=8,
-                       height=1, command=Login)
-  btnLogin.grid(row=2, column=6, padx=45)
+    btnTOTP = tk.Button(objMainWin, text="TOTP", width=8,
+                        height=1, command=ShTOTP)
+    btnTOTP.grid(row=4, column=3, padx=10)
 
-  btnAuth = tk.Button(objMainWin, text="Authenticate", width=10,
-                      height=1, command=Auth)
+    btnConfig = tk.Button(objMainWin, text="Config", width=8,
+                          height=1, command=Config)
+    btnConfig.grid(row=4, column=6)
 
-  btnChgPwd = tk.Button(objMainWin, text="Change Password", width=15,
-                        height=1, command=ChgPWD)
-  btnChgPwd.grid(row=3, column=6, padx=0)
+    btnLogin = tk.Button(objMainWin, text="Login", width=8,
+                        height=1, command=Login)
+    btnLogin.grid(row=2, column=6, padx=45)
 
-  btnDel = tk.Button(objMainWin, text="Delete", width=8,
-                     height=1, command=ItemDel)
-  btnDel.grid(row=5, column=3, padx=10)
+    btnAuth = tk.Button(objMainWin, text="Authenticate", width=10,
+                        height=1, command=Auth)
 
-  btnReset = tk.Button(objMainWin, text="DB Wipe", width=10,
-                       height=1, command=DBWipe)
-  btnReset.grid(row=5, column=6, padx=0)
+    btnChgPwd = tk.Button(objMainWin, text="Change Password", width=15,
+                          height=1, command=ChgPWD)
+    btnChgPwd.grid(row=3, column=6, padx=0)
 
-  objPWDLabel = tk.Label(objMainWin, text="Please enter your password")
-  objPWDText = tk.Entry(objMainWin, width=25, show="*")
+    btnDel = tk.Button(objMainWin, text="Delete", width=8,
+                      height=1, command=ItemDel)
+    btnDel.grid(row=5, column=3, padx=10)
 
-  tk.Label(objMainWin, text="Key").grid(row=0, column=0, padx=10, sticky=tk.E)
-  tk.Label(objMainWin, text="Value").grid(
-      row=1, column=0, padx=10, sticky=tk.E)
-  objKeyText = tk.Entry(objMainWin, width=50)
-  objKeyText.grid(row=0, column=1)
-  objValueText = tk.Entry(objMainWin, width=50)
-  if bHideValueIn:
-    objValueText.config(show="*")
-  objValueText.grid(row=1, column=1)
+    btnReset = tk.Button(objMainWin, text="DB Wipe", width=10,
+                        height=1, command=DBWipe)
+    btnReset.grid(row=5, column=6, padx=0)
 
-  objSB_Items = tk.Scrollbar(objMainWin)
-  objSB_Items.grid(row=3, column=2, rowspan=6, sticky=tk.NS)
+    objPWDLabel = tk.Label(objMainWin, text="Please enter your password")
+    objPWDText = tk.Entry(objMainWin, width=25, show="*")
 
-  objItemsLB = tk.Listbox(objMainWin, yscrollcommand=objSB_Items.set, width=50)
-  for strItem in lstVault:
-    if strItem != strCheckKey:
-      objItemsLB.insert(tk.END, strItem)
+    tk.Label(objMainWin, text="Key").grid(row=0, column=0, padx=10, sticky=tk.E)
+    tk.Label(objMainWin, text="Value").grid(
+        row=1, column=0, padx=10, sticky=tk.E)
+    objKeyText = tk.Entry(objMainWin, width=50)
+    objKeyText.grid(row=0, column=1)
+    objValueText = tk.Entry(objMainWin, width=50)
+    if bHideValueIn:
+      objValueText.config(show="*")
+    objValueText.grid(row=1, column=1)
 
-  objItemsLB.grid(row=3, column=1, rowspan=6)
-  objSB_Items.config(command=objItemsLB.yview)
+    objSB_Items = tk.Scrollbar(objMainWin)
+    objSB_Items.grid(row=3, column=2, rowspan=6, sticky=tk.NS)
 
-  strMsg = "Welcome to the PiVault GUI, a simple secrets vault encrytping with AES-256 using MODE_CBC"
-  strMsg += "\nThis is running under Python Version {} ".format(strVersion)
-  strMsg += "using {} ".format(strStore)
-  if strStore != "files":
-    strMsg += "on {}".format(FetchEnv("HOST"))
-  objMsg1 = tk.Message(objMainWin, text=strMsg, width=iWidth-50)
-  objMsg1.config(bg="lightblue", fg="black")
-  objMsg1.place(x=20, y=iHeight - 50)
+    objItemsLB = tk.Listbox(objMainWin, yscrollcommand=objSB_Items.set, width=50)
+    for strItem in lstVault:
+      if strItem != strCheckKey:
+        objItemsLB.insert(tk.END, strItem)
 
-  objPWDNote = tk.Message(objMainWin, text="Please Log in", width=400)
-  objPWDNote.config(bg="pink", fg="black")
-  objPWDNote.grid(row=0, column=6)
+    objItemsLB.grid(row=3, column=1, rowspan=6)
+    objSB_Items.config(command=objItemsLB.yview)
 
-  strLBCount = "There are {} entries".format(objItemsLB.size())
-  objLBMsg = tk.Message(objMainWin, width=150, bg="white",
-                        fg="black", text=strLBCount)
-  objLBMsg.grid(column=1,row=9,sticky=tk.W)
+    strMsg = "Welcome to the PiVault GUI, a simple secrets vault encrytping with AES-256 using MODE_CBC"
+    strMsg += "\nThis is running under Python Version {} ".format(strVersion)
+    strMsg += "using {} ".format(strStore)
+    if strStore != "files":
+      strMsg += "on {}".format(FetchEnv("HOST"))
+    objMsg1 = tk.Message(objMainWin, text=strMsg, width=iWidth-50)
+    objMsg1.config(bg="lightblue", fg="black")
+    objMsg1.place(x=20, y=iHeight - 50)
 
-  objCountdown = tk.Message(objMainWin, text="", width=200)
-  objCountdown.config(bg="lightgreen", fg="black")
-  if strPWD != "":
-    objPWDText.delete(0, tk.END)
-    objPWDText.insert(0, strPWD)
-    Auth()
+    objPWDNote = tk.Message(objMainWin, text="Please Log in", width=400)
+    objPWDNote.config(bg="pink", fg="black")
+    objPWDNote.grid(row=0, column=6)
 
-  if os.path.isfile(strICOFile):
-    objMainWin.iconbitmap(strICOFile)
-  objMainWin.mainloop()
+    strLBCount = "There are {} entries".format(objItemsLB.size())
+    objLBMsg = tk.Message(objMainWin, width=150, bg="white",
+                          fg="black", text=strLBCount)
+    objLBMsg.grid(column=1,row=9,sticky=tk.W)
+
+    objCountdown = tk.Message(objMainWin, text="", width=200)
+    objCountdown.config(bg="lightgreen", fg="black")
+    if strPWD != "":
+      objPWDText.delete(0, tk.END)
+      objPWDText.insert(0, strPWD)
+      Auth()
+
+    if os.path.isfile(strICOFile):
+      objMainWin.iconbitmap(strICOFile)
+    objMainWin.mainloop()
+
+  GUILayout()
 
 def CreateConfig():
   """
@@ -968,7 +1018,7 @@ def DisplayHelp():
     elif strItem not in lstDontShow:
       print("{} : {}".format(strItem, dictMenu[strItem]))
 
-def ChangePWD():
+def ChangePWD(strNewPWD):
   """
   Function that loops through all items in the store, decrypts it then re-encrypts with new password.
   Parameters:
@@ -976,13 +1026,26 @@ def ChangePWD():
   Returns:
     nothing
   """
-  strNewPWD = maskpass.askpass(prompt="Please provide New password: ", mask="*")
+  global lstFailed
+  global strPWD
+  bSuccess = True
+  lstFailed = []
   for strKey in lstVault:
     strValue = FetchItem(strKey)
-    if AddItem(strKey, strValue,False,strNewPWD):
-      print("key {} successfully changed".format(strKey))
+    if strValue:
+      if AddItem(strKey, strValue,False,strNewPWD):
+        MsgOut("key {} successfully changed".format(strKey))
+      else:
+        MsgOut("Failed to change key {}".format(strKey))
+        bSuccess = False
+        lstFailed.append(strKey)
     else:
-      print("Failed to change key {}".format(strKey))
+      MsgOut("Failed to change key {}".format(strKey))
+      bSuccess = False
+      lstFailed.append(strKey)
+
+  strPWD = strNewPWD
+  return bSuccess
 
 def ProcessCMD(objCmd):
   """
@@ -1053,7 +1116,13 @@ def ProcessCMD(objCmd):
   elif strCmd == "list":
     ListItems()
   elif strCmd == "passwd":
-    ChangePWD()
+    strNewPWD = maskpass.askpass(
+        prompt="Please provide New password: ", mask="*")
+    if(ChangePWD(strNewPWD)):
+      print("Password successfully changed")
+    else:
+      print("Password changed failed on {} of {} entries. "
+      "The following keys failed {}".format(len(lstFailed),len(lstVault),(lstFailed)))
   elif strCmd == "fetch":
     bLogin = True
     if not bLoggedIn:
@@ -1438,7 +1507,7 @@ def FetchFileItem(strKey):
     try:
       return StringDecryptor(strPWD, strValue)
     except ValueError:
-      print("Failed to decrypt the vault")
+      MsgOut("Failed to decrypt the vault")
       return False
 
 def FetchRedisItem(strKey):
@@ -1454,7 +1523,7 @@ def FetchRedisItem(strKey):
   try:
     return StringDecryptor(strPWD, strValue)
   except ValueError:
-    print("Failed to decrypt the vault")
+    MsgOut("Failed to decrypt the vault")
     return False
 
 def FetchSQLItem(strKey):
@@ -1470,7 +1539,7 @@ def FetchSQLItem(strKey):
   try:
     return StringDecryptor(strPWD, strValue)
   except ValueError:
-    print("Failed to decrypt the vault")
+    MsgOut("Failed to decrypt the vault")
     return False
 
 def FetchItem(strKey):
@@ -1505,6 +1574,7 @@ def DelItem(strKey):
       strFileName = strVault + strKey
       try:
         os.remove(strFileName)
+        return True
       except PermissionError:
         print("unable to delete file {}, "
               "permission denied.".format(strFileName))
