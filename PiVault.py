@@ -42,6 +42,7 @@ strDefTable = "tblVault"
 strCheckValue = "This is a simple secrets vault"
 strCheckKey = "VaultInit"
 lstDBTypes = ["sqlite", "mysql", "postgres", "mssql"]
+lstStoreTypes = ["files","Redis"]
 bLoggedIn = False
 dictComponents = {}
 iTimer = 0
@@ -130,32 +131,156 @@ def ShowGUI():
     return
 
   def Config():
+    global iClippy
+    global objDatabaseText
+    global objDBPassText
+    global objDBUserText
+    global iHideIn
+    global objHostText
+    global objPortText
+    global strStoreType
+    global objTableText
+    global iTOTP
+    global strColor
+    global objVaultText
+    global objConfWin
+
+    lstStoreOptions = lstStoreTypes.copy()
+    lstStoreOptions += lstDBTypes.copy()
     objConfWin = tk.Toplevel(objMainWin)
-    objConfWin.title("Configuration")
-    objConfWin.iconbitmap(strICOFile)
-    iWidth = 670
-    iHeight = 320
+    iWidth = 600
+    iHeight = 450
     ixMargin = 50
     iyMargin = 50
     iScreenW = objConfWin.winfo_screenwidth()
     iScreenH = objConfWin.winfo_screenheight()
     ixMargin = int(iScreenW/2 - iWidth/2)
     iyMargin = int(iScreenH/2 - iHeight/2)
-    objConfWin.attributes("-alpha", 0.95)
     objConfWin.resizable(width=False, height=False)
     objConfWin.geometry(
         "{}x{}+{}+{}".format(iWidth, iHeight, ixMargin, iyMargin))
 
+    objConfWin.title("Configuration")
+    objConfWin.iconbitmap(strICOFile)
+    objConfWin.columnconfigure(0, weight=1)
+    objConfWin.columnconfigure(3, weight=1)
     objConfLbl = tk.Label(objConfWin,text="PiVault Configuration")
-    #objConfLbl.place(relx=0.5,y=25, anchor="center")
-    objConfLbl.grid(row=0, columnspan=5, sticky=tk.EW)
+    objConfLbl.grid(row=0, columnspan=5, sticky=tk.EW, padx=10,pady=10)
     objConfLbl.config(font=("arial bold",24))
     objStoreLbl = tk.Label(objConfWin,text="Store Type: ")
-    objStoreLbl.grid(row=1,column=0)
+    objStoreLbl.grid(row=1, column=1, sticky=tk.E)
     strStoreType = tk.StringVar()
-    strStoreType.set(strDefStore)
-    cmbStore = tk.OptionMenu(objConfWin,strStoreType,*lstDBTypes)
-    cmbStore.grid(row=1,column=1)
+    strStoreType.set(strStore)
+    cmbStore = tk.OptionMenu(objConfWin, strStoreType, *lstStoreOptions)
+    cmbStore.grid(row=1,column=2,sticky=tk.W)
+
+    objVaultLbl = tk.Label(objConfWin,text="Vault: ")
+    objVaultLbl.grid(row=2, column=1, sticky=tk.E)
+    objVaultText = tk.Entry(objConfWin,width=50)
+    objVaultText.grid(row=2, column=2)
+    objVaultText.insert(0,strVault)
+
+    objHostLbl = tk.Label(objConfWin, text="Host: ")
+    objHostLbl.grid(row=3, column=1, sticky=tk.E)
+    objHostText = tk.Entry(objConfWin, width=50)
+    objHostText.grid(row=3, column=2)
+    objHostText.insert(0, FetchEnv("HOST"))
+
+    objPortLbl = tk.Label(objConfWin, text="Port: ")
+    objPortLbl.grid(row=4, column=1, sticky=tk.E)
+    objPortText = tk.Entry(objConfWin, width=50)
+    objPortText.grid(row=4, column=2)
+    objPortText.insert(0, FetchEnv("PORT"))
+
+    objTableLbl = tk.Label(objConfWin, text="Table: ")
+    objTableLbl.grid(row=5, column=1, sticky=tk.E)
+    objTableText = tk.Entry(objConfWin, width=50)
+    objTableText.grid(row=5, column=2)
+    objTableText.insert(0, FetchEnv("TABLE"))
+
+    objDatabaseLbl = tk.Label(objConfWin, text="Database: ")
+    objDatabaseLbl.grid(row=6, column=1, sticky=tk.E)
+    objDatabaseText = tk.Entry(objConfWin, width=50)
+    objDatabaseText.grid(row=6, column=2)
+    objDatabaseText.insert(0, FetchEnv("DB"))
+
+    objDBUserLbl = tk.Label(objConfWin, text="Database User: ")
+    objDBUserLbl.grid(row=7, column=1, sticky=tk.E)
+    objDBUserText = tk.Entry(objConfWin, width=50)
+    objDBUserText.grid(row=7, column=2)
+    objDBUserText.insert(0, FetchEnv("DBUSER"))
+
+    objDBPassLbl = tk.Label(objConfWin, text="DB Password: ")
+    objDBPassLbl.grid(row=8, column=1, sticky=tk.E)
+    objDBPassText = tk.Entry(objConfWin, width=50)
+    objDBPassText.grid(row=8, column=2)
+    objDBPassText.insert(0, FetchEnv("DBPWD"))
+
+    objNoteLbl = tk.Label(objConfWin, text="Don't Use, use Env Var instead", fg="red")
+    objNoteLbl.grid(row=8, column=3, padx=5, sticky=tk.W)
+
+    iHideIn = tk.IntVar()
+    objHideInLbl = tk.Label(objConfWin, text="Hide Input: ")
+    objHideInLbl.grid(row=9, column=1, sticky=tk.E)
+    objHideInChk = tk.Checkbutton(objConfWin,variable=iHideIn)
+    objHideInChk.grid(row=9, column=2, sticky=tk.W)
+    if bHideValueIn:
+      objHideInChk.select()
+
+    objSectionLbl = tk.Label(objConfWin,text="The following only impacts CLI")
+    objSectionLbl.grid(row=10, columnspan=5, sticky=tk.EW, padx=10, pady=10)
+    objSectionLbl.config(font=("arial bold", 14))
+
+    objColorLbl = tk.Label(objConfWin, text="Value Color: ")
+    objColorLbl.grid(row=11, column=1, sticky=tk.E)
+    strColor = tk.StringVar()
+    strColor.set(FetchEnv("VALUECOLOR"))
+    cmbColor = tk.OptionMenu(objConfWin, strColor,*dictColor.keys())
+    cmbColor.grid(row=11, column=2, sticky=tk.W)
+
+    iTOTP = tk.IntVar()
+    objTOTPLbl = tk.Label(objConfWin, text="Enable TOTP: ")
+    objTOTPLbl.grid(row=12, column=1, sticky=tk.E)
+    objTOTPChk = tk.Checkbutton(objConfWin,variable=iTOTP)
+    objTOTPChk.grid(row=12, column=2, sticky=tk.W)
+    if bTOTP:
+      objTOTPChk.select()
+
+    iClippy = tk.IntVar()
+    objClippyLbl = tk.Label(objConfWin, text="Enable Clippy: ")
+    objClippyLbl.grid(row=13, column=1, sticky=tk.E)
+    objClippyChk = tk.Checkbutton(objConfWin,variable=iClippy)
+    objClippyChk.grid(row=13, column=2, sticky=tk.W)
+    if bClippy:
+      objClippyChk.select()
+
+    btnSave = tk.Button(objConfWin, text="Save", width=15,
+                          height=1, command=SaveConfig)
+    btnSave.grid(row=14, columnspan=5, padx=10, pady=10)
+
+  def SaveConfig():
+    dictConfFile = {}
+    if iClippy.get() == 1:
+      dictConfFile["CLIPPYENABLE"] = "true"
+    else:
+      dictConfFile["CLIPPYENABLE"] = "false"
+    if iHideIn.get() == 1:
+      dictConfFile["HIDEINPUT"] = "true"
+    else:
+      dictConfFile["HIDEINPUT"] = "false"
+    if iTOTP.get() == 1:
+      dictConfFile["TOTPENABLE"] = FetchEnv("TOTPENABLE")
+    dictConfFile["DB"] = objDatabaseText.get()
+    dictConfFile["DBPWD"] = objDBPassText.get()
+    dictConfFile["DBUSER"] = objDBUserText.get()
+    dictConfFile["HOST"] = objHostText.get()
+    dictConfFile["PORT"] = objPortText.get()
+    dictConfFile["STORE"] = strStoreType.get()
+    dictConfFile["TABLE"] = objTableText.get()
+    dictConfFile["VALUECOLOR"] = strColor.get()
+    dictConfFile["VAULT"] = objVaultText.get()
+    CreateConfig(dictConfFile)
+    objConfWin.destroy()
 
 
   def MyTimer():
@@ -472,12 +597,36 @@ def ShowGUI():
 
   GUILayout()
 
-def CreateConfig():
+def PrepConfig ():
+  """
+  Function that Creates a dictionary of configuration items
+  for use by the configuration file creator
+  Parameters:
+    nothing
+  Returns:
+    dictionary object of all configuration items.
+  """
+  dictConfFile = {}
+  dictConfFile["CLIPPYENABLE"] = FetchEnv("CLIPPYENABLE")
+  dictConfFile["DB"] = FetchEnv("DB")
+  dictConfFile["DBPWD"] = FetchEnv("DBPWD")
+  dictConfFile["DBUSER"] = FetchEnv("DBUSER")
+  dictConfFile["HIDEINPUT"] = FetchEnv("HIDEINPUT")
+  dictConfFile["HOST"] = FetchEnv("HOST")
+  dictConfFile["PORT"] = FetchEnv("PORT")
+  dictConfFile["STORE"] = strStore
+  dictConfFile["TABLE"] = FetchEnv("TABLE")
+  dictConfFile["TOTPENABLE"] = FetchEnv("TOTPENABLE")
+  dictConfFile["VALUECOLOR"] = FetchEnv("VALUECOLOR")
+  dictConfFile["VAULT"] = strVault
+  return dictConfFile
+
+def CreateConfig(dictOut):
   """
   Function that Creates a configuration file that can be customized
   then used instead of environment variables
   Parameters:
-    nothing
+    dictOut: Dictionary object of configuration items
   Returns:
     tru/false indicating success of failure
   """
@@ -487,18 +636,18 @@ def CreateConfig():
     return False
   else:
     objFileOut = tmpResponse
-    objFileOut.write("CLIPPYENABLE={}\n".format(FetchEnv("CLIPPYENABLE")))
-    objFileOut.write("DB={}\n".format(FetchEnv("DB")))
-    objFileOut.write("DBPWD={}\n".format(FetchEnv("DBPWD")))
-    objFileOut.write("DBUSER={}\n".format(FetchEnv("DBUSER")))
-    objFileOut.write("HIDEINPUT={}\n".format(FetchEnv("HIDEINPUT")))
-    objFileOut.write("HOST={}\n".format(FetchEnv("HOST")))
-    objFileOut.write("PORT={}\n".format(FetchEnv("PORT")))
-    objFileOut.write("STORE={}\n".format(FetchEnv("STORE")))
-    objFileOut.write("TABLE={}\n".format(FetchEnv("TABLE")))
-    objFileOut.write("TOTPENABLE={}\n".format(FetchEnv("TOTPENABLE")))
-    objFileOut.write("VALUECOLOR={}\n".format(FetchEnv("VALUECOLOR")))
-    objFileOut.write("VAULT={}\n".format(FetchEnv("VAULT")))
+    objFileOut.write("CLIPPYENABLE={}\n".format(dictOut["CLIPPYENABLE"]))
+    objFileOut.write("DB={}\n".format(dictOut["DB"]))
+    objFileOut.write("DBPWD={}\n".format(dictOut["DBPWD"]))
+    objFileOut.write("DBUSER={}\n".format(dictOut["DBUSER"]))
+    objFileOut.write("HIDEINPUT={}\n".format(dictOut["HIDEINPUT"]))
+    objFileOut.write("HOST={}\n".format(dictOut["HOST"]))
+    objFileOut.write("PORT={}\n".format(dictOut["PORT"]))
+    objFileOut.write("STORE={}\n".format(dictOut["STORE"]))
+    objFileOut.write("TABLE={}\n".format(dictOut["TABLE"]))
+    objFileOut.write("TOTPENABLE={}\n".format(dictOut["TOTPENABLE"]))
+    objFileOut.write("VALUECOLOR={}\n".format(dictOut["VALUECOLOR"]))
+    objFileOut.write("VAULT={}\n".format(dictOut["VAULT"]))
     objFileOut.close()
     return True
 
@@ -1198,7 +1347,7 @@ def ProcessCMD(objCmd):
       else:
         print("Failed to reset the store")
   elif strCmd == "create":
-    if(CreateConfig()):
+    if(CreateConfig(PrepConfig())):
       print("Successfully created configuration file {}. Please check it out and modify as needed.".format(strConf_File))
     else:
       print("Failed to create a configuration file")
