@@ -171,7 +171,7 @@ def ShowGUI():
     objStoreLbl.grid(row=1, column=1, sticky=tk.E)
     strStoreType = tk.StringVar()
     strStoreType.set(strStore)
-    cmbStore = tk.OptionMenu(objConfWin, strStoreType, *lstStoreOptions)
+    cmbStore = tk.OptionMenu(objConfWin, strStoreType, *lstStoreOptions, command=UpdateView)
     cmbStore.grid(row=1,column=2,sticky=tk.W)
 
     objVaultLbl = tk.Label(objConfWin,text="Vault: ")
@@ -282,6 +282,9 @@ def ShowGUI():
     CreateConfig(dictConfFile)
     objConfWin.destroy()
 
+  def UpdateView(strTemp):
+    # TODO Add code that hides and shows fields needed for each store
+    print("Selection is: {}".format(strTemp))
 
   def MyTimer():
     global iTimer
