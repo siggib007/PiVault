@@ -130,7 +130,33 @@ def ShowGUI():
     return
 
   def Config():
-    pass
+    objConfWin = tk.Toplevel(objMainWin)
+    objConfWin.title("Configuration")
+    objConfWin.iconbitmap(strICOFile)
+    iWidth = 670
+    iHeight = 320
+    ixMargin = 50
+    iyMargin = 50
+    iScreenW = objConfWin.winfo_screenwidth()
+    iScreenH = objConfWin.winfo_screenheight()
+    ixMargin = int(iScreenW/2 - iWidth/2)
+    iyMargin = int(iScreenH/2 - iHeight/2)
+    objConfWin.attributes("-alpha", 0.95)
+    objConfWin.resizable(width=False, height=False)
+    objConfWin.geometry(
+        "{}x{}+{}+{}".format(iWidth, iHeight, ixMargin, iyMargin))
+
+    objConfLbl = tk.Label(objConfWin,text="PiVault Configuration")
+    #objConfLbl.place(relx=0.5,y=25, anchor="center")
+    objConfLbl.grid(row=0, columnspan=5, sticky=tk.EW)
+    objConfLbl.config(font=("arial bold",24))
+    objStoreLbl = tk.Label(objConfWin,text="Store Type: ")
+    objStoreLbl.grid(row=1,column=0)
+    strStoreType = tk.StringVar()
+    strStoreType.set(strDefStore)
+    cmbStore = tk.OptionMenu(objConfWin,strStoreType,*lstDBTypes)
+    cmbStore.grid(row=1,column=1)
+
 
   def MyTimer():
     global iTimer
