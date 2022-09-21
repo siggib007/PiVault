@@ -1,5 +1,5 @@
 # PiVault
-This is a very simply CLI based secrets manager written in python and tested on python 3.6, 3.7 and 3.10 to some various levels.  At the time of this writing I've included support for the following storage engines and it's been tested under the stated operating system
+This is a very simply CLI based secrets manager written in python and tested on python 3.6, 3.7 and 3.10 to some various levels.  At the time of this writing I've included support for the following storage engines and it's been tested under the stated operating system. Even though it is intended as CLI secrets manager there is a GUI option, just pass "gui" as a parameter and the GUI will start.
 
 - File System: Windows 10, Windows 11, ubuntu 18, ubuntu 20, OpenBSD and MacOS
 - Redis: Windows 10, Windows 11, ubuntu 18, ubuntu 20
@@ -36,9 +36,15 @@ Speaking of passwords and environment variables, you can define an environment v
 
 When you fetch a stored value, the decrypted string is printed in red font by default. You can change this by defining an environment variable called VALUECOLOR and setting it to one these colors: black, red, green, orange, blue, purple, cyan, lightgrey, darkgrey, lightred, lightgreen, yellow, lightblue, pink, lightcyan.
 
-Check out `Environment Variables.txt` for full details of possible environment variables, for each storage engine and reach out if you have questions.
+If you initiate the script without any arguments, except maybe the vault argument, you will be dropped into an interactive shell. 
 
-If you initiate the script without any arguments, except maybe the vault argument, you will be dropped into an interactive shell. You can also accomplish everything by using just command arguments. 
+If you set an environment variable called QUIET and set it to true all non essential output is suppressed and if you provide no command you get the help output. There is no interactive shell in quiet mode
+
+Check out `Environment Variables.txt` for full details of possible environment variables, and reach out if you have questions. There is also `EnvExamples.md` that calls out what environment variable are important for each storage engine.
+
+If you rather have a configuration file, you can create one with the create option, as well through the Preference window in the GUI. You should never put any passwords in this configuration file and always keep them in environment variables. 
+
+You can also accomplish everything by using just command arguments.
 
 ```
 Here are the commands you can use:
@@ -49,9 +55,12 @@ del : removes the specified key
 reset : Resets your stores so it is completely uninitialized
 list : List out all keys
 fetch : fetch a specified key
-clippy : put specified key value on the clipboard
+clip : put specified key value on the clipboard
 passwd : Change the password
 totp : Displays TOTP code for the secret stored at the specified key
+create : Create a configuration file based on current environment
+gui : Starts the GUI
+login : Prompts for Vault password. Should never be needed manually as you are prompted when needed
 ```
 
 Here are some examples:
@@ -84,7 +93,7 @@ This creates a new entry called testkey17 and encrypts the string "this is a key
 python3 PiVault.py add JoesApp ERN7C3DG3GWBKDF6JXRCQIAF4M24GMQ7NZXL5JF4XPQU45N3R642VTCKHTIRU72W
 ```
 
-This stores the TOTP secret from JoesApp for later use to generate a TOTP code
+This stores the TOTP secret from `JoesApp` for later use to generate a TOTP code
 
 ```
 python3 PiVault.py add Wonderland otpauth://totp/Wonderland:Alice@wonderland.com?secret=JZ3I66NGNBHFA3PZRIUA46XNYXQJM6SFIWSXO6T3GUNFEDQFHPQRMHVSS3MAZCUCJZ3I66NGNBHFA3PZRIUA46XNYXQJM6SFIWSXO6T3GUNFEDQFHPQRMHVSS3MAZCUC
@@ -96,4 +105,8 @@ This stores the whole TOTP URL from the Wonderland system for later use to gener
 python3 PiVault.py totp Wonderland
 ```
 
-This decrypts entry otpath and uses it to generate a TOTP (Google Auth compatible) and displays it in the console
+This decrypts entry `otpath` and uses it to generate a TOTP (Google Auth compatible) and displays it in the console
+
+Here is a screenshot of what the main GUI looks like
+
+![ScreenShot-GUI](D:\OneDrive\Scripts\PiVault\Screenshot-GUI.png)
