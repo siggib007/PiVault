@@ -500,6 +500,18 @@ def ShowGUI():
     objMainWin.geometry(
         "{}x{}+{}+{}".format(iWidth, iHeight, ixMargin, iyMargin))
 
+    objMenu = tk.Menu(objMainWin)
+    objMainWin.config(menu=objMenu)
+    objFileMenu = tk.Menu(objMenu,tearoff=False)
+    objFileMenu.add_command(label="Preferences",command=Config)
+    objFileMenu.add_separator()
+    objFileMenu.add_command(label="Exit",command=objMainWin.destroy)
+    objMenu.add_cascade(label="File", menu=objFileMenu)
+
+    objDBmenu = tk.Menu(objMenu,tearoff=False)
+    objDBmenu.add_command(label="Nuke the database",command=DBWipe)
+    objMenu.add_cascade(label="DataBase",menu=objDBmenu)
+
     btnAdd = tk.Button(objMainWin, text="Add", width=8,
                       height=1, command=AddKey)
     btnAdd.grid(row=0, column=3, rowspan=2, padx=10)
@@ -518,7 +530,7 @@ def ShowGUI():
 
     btnConfig = tk.Button(objMainWin, text="Config", width=8,
                           height=1, command=Config)
-    btnConfig.grid(row=4, column=6)
+    #btnConfig.grid(row=4, column=6)
 
     btnLogin = tk.Button(objMainWin, text="Login", width=8,
                         height=1, command=Login)
@@ -537,7 +549,7 @@ def ShowGUI():
 
     btnReset = tk.Button(objMainWin, text="DB Wipe", width=10,
                         height=1, command=DBWipe)
-    btnReset.grid(row=5, column=6, padx=0)
+    #btnReset.grid(row=5, column=6, padx=0)
 
     objPWDLabel = tk.Label(objMainWin, text="Please enter your password")
     objPWDText = tk.Entry(objMainWin, width=25, show="*")
