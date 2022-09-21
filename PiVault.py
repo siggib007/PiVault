@@ -42,7 +42,7 @@ strDefTable = "tblVault"
 strCheckValue = "This is a simple secrets vault"
 strCheckKey = "VaultInit"
 lstDBTypes = ["sqlite", "mysql", "postgres", "mssql"]
-lstStoreTypes = ["files","Redis"]
+lstStoreTypes = ["files","redis"]
 bLoggedIn = False
 dictComponents = {}
 iTimer = 0
@@ -132,18 +132,28 @@ def ShowGUI():
 
   def Config():
     global iClippy
-    global objDatabaseText
-    global objDBPassText
-    global objDBUserText
     global iHideIn
-    global objHostText
-    global objPortText
     global strStoreType
-    global objTableText
     global iTOTP
     global strColor
     global objVaultText
     global objConfWin
+    global objVaultLbl
+    global objVaultText
+    global objHostLbl
+    global objHostText
+    global objPortLbl
+    global objPortText
+    global objTableLbl
+    global objTableText
+    global objDatabaseLbl
+    global objDatabaseText
+    global objDBUserLbl
+    global objDBUserText
+    global objDBPassLbl
+    global objDBPassText
+    global objNoteLbl
+
 
     lstStoreOptions = lstStoreTypes.copy()
     lstStoreOptions += lstDBTypes.copy()
@@ -192,11 +202,14 @@ def ShowGUI():
     objPortText.grid(row=4, column=2)
     objPortText.insert(0, FetchEnv("PORT"))
 
+    strTable = FetchEnv("TABLE")
+    if strTable == "":
+      strTable = strDefTable
     objTableLbl = tk.Label(objConfWin, text="Table: ")
     objTableLbl.grid(row=5, column=1, sticky=tk.E)
     objTableText = tk.Entry(objConfWin, width=50)
     objTableText.grid(row=5, column=2)
-    objTableText.insert(0, FetchEnv("TABLE"))
+    objTableText.insert(0, strTable)
 
     objDatabaseLbl = tk.Label(objConfWin, text="Database: ")
     objDatabaseLbl.grid(row=6, column=1, sticky=tk.E)
@@ -216,13 +229,14 @@ def ShowGUI():
     objDBPassText.grid(row=8, column=2)
     objDBPassText.insert(0, FetchEnv("DBPWD"))
 
-    objNoteLbl = tk.Label(objConfWin, text="Don't Use, use Env Var instead", fg="red")
+    objNoteLbl = tk.Label(
+        objConfWin, text="Don't Use, use Env Var instead", fg="red")
     objNoteLbl.grid(row=8, column=3, padx=5, sticky=tk.W)
 
     iHideIn = tk.IntVar()
     objHideInLbl = tk.Label(objConfWin, text="Hide Input: ")
     objHideInLbl.grid(row=9, column=1, sticky=tk.E)
-    objHideInChk = tk.Checkbutton(objConfWin,variable=iHideIn)
+    objHideInChk = tk.Checkbutton(objConfWin, variable=iHideIn)
     objHideInChk.grid(row=9, column=2, sticky=tk.W)
     if bHideValueIn:
       objHideInChk.select()
@@ -231,10 +245,14 @@ def ShowGUI():
     objSectionLbl.grid(row=10, columnspan=5, sticky=tk.EW, padx=10, pady=10)
     objSectionLbl.config(font=("arial bold", 14))
 
+    strValueColor = FetchEnv("VALUECOLOR")
+    if strValueColor == "":
+      strValueColor = strDefValueColor
+
     objColorLbl = tk.Label(objConfWin, text="Value Color: ")
     objColorLbl.grid(row=11, column=1, sticky=tk.E)
     strColor = tk.StringVar()
-    strColor.set(FetchEnv("VALUECOLOR"))
+    strColor.set(strValueColor)
     cmbColor = tk.OptionMenu(objConfWin, strColor,*dictColor.keys())
     cmbColor.grid(row=11, column=2, sticky=tk.W)
 
@@ -257,6 +275,7 @@ def ShowGUI():
     btnSave = tk.Button(objConfWin, text="Save", width=15,
                           height=1, command=SaveConfig)
     btnSave.grid(row=14, columnspan=5, padx=10, pady=10)
+    UpdateView(strStore)
 
   def SaveConfig():
     dictConfFile = {}
@@ -283,8 +302,86 @@ def ShowGUI():
     objConfWin.destroy()
 
   def UpdateView(strTemp):
-    # TODO Add code that hides and shows fields needed for each store
-    print("Selection is: {}".format(strTemp))
+    if strTemp == "files":
+      objVaultLbl.grid(row=2, column=1, sticky=tk.E)
+      objVaultText.grid(row=2, column=2)
+      objHostLbl.grid_remove()
+      objHostText.grid_remove()
+      objPortLbl.grid_remove()
+      objPortText.grid_remove()
+      objTableLbl.grid_remove()
+      objTableText.grid_remove()
+      objDatabaseLbl.grid_remove()
+      objDatabaseText.grid_remove()
+      objDBUserLbl.grid_remove()
+      objDBUserText.grid_remove()
+      objDBPassLbl.grid_remove()
+      objDBPassText.grid_remove()
+      objNoteLbl.grid_remove()
+    elif strTemp == "redis":
+      objVaultLbl.grid_remove()
+      objVaultText.grid_remove()
+      objHostLbl.grid(row=3, column=1, sticky=tk.E)
+      objHostText.grid(row=3, column=2)
+      objPortLbl.grid(row=4, column=1, sticky=tk.E)
+      objPortText.grid(row=4, column=2)
+      objTableLbl.grid_remove()
+      objTableText.grid_remove()
+      objDatabaseLbl.grid(row=6, column=1, sticky=tk.E)
+      objDatabaseText.grid(row=6, column=2)
+      objDBUserLbl.grid(row=7, column=1, sticky=tk.E)
+      objDBUserText.grid(row=7, column=2)
+      objDBPassLbl.grid(row=8, column=1, sticky=tk.E)
+      objDBPassText.grid(row=8, column=2)
+      objNoteLbl.grid(row=8, column=3, padx=5, sticky=tk.W)
+    elif strTemp == "sqlite":
+      objVaultLbl.grid(row=2, column=1, sticky=tk.E)
+      objVaultText.grid(row=2, column=2)
+      objHostLbl.grid_remove()
+      objHostText.grid_remove()
+      objPortLbl.grid_remove()
+      objPortText.grid_remove()
+      objTableLbl.grid(row=5, column=1, sticky=tk.E)
+      objTableText.grid(row=5, column=2)
+      objDatabaseLbl.grid_remove()
+      objDatabaseText.grid_remove()
+      objDBUserLbl.grid_remove()
+      objDBUserText.grid_remove()
+      objDBPassLbl.grid_remove()
+      objDBPassText.grid_remove()
+      objNoteLbl.grid_remove()
+    elif strTemp in lstDBTypes:
+      objVaultLbl.grid_remove()
+      objVaultText.grid_remove()
+      objHostLbl.grid(row=3, column=1, sticky=tk.E)
+      objHostText.grid(row=3, column=2)
+      objPortLbl.grid_remove()
+      objPortText.grid_remove()
+      objTableLbl.grid(row=5, column=1, sticky=tk.E)
+      objTableText.grid(row=5, column=2)
+      objDatabaseLbl.grid(row=6, column=1, sticky=tk.E)
+      objDatabaseText.grid(row=6, column=2)
+      objDBUserLbl.grid(row=7, column=1, sticky=tk.E)
+      objDBUserText.grid(row=7, column=2)
+      objDBPassLbl.grid(row=8, column=1, sticky=tk.E)
+      objDBPassText.grid(row=8, column=2)
+      objNoteLbl.grid(row=8, column=3, padx=5, sticky=tk.W)
+    else:
+      objVaultLbl.grid(row=2, column=1, sticky=tk.E)
+      objVaultText.grid(row=2, column=2)
+      objHostLbl.grid(row=3, column=1, sticky=tk.E)
+      objHostText.grid(row=3, column=2)
+      objPortLbl.grid(row=4, column=1, sticky=tk.E)
+      objPortText.grid(row=4, column=2)
+      objTableLbl.grid(row=5, column=1, sticky=tk.E)
+      objTableText.grid(row=5, column=2)
+      objDatabaseLbl.grid(row=6, column=1, sticky=tk.E)
+      objDatabaseText.grid(row=6, column=2)
+      objDBUserLbl.grid(row=7, column=1, sticky=tk.E)
+      objDBUserText.grid(row=7, column=2)
+      objDBPassLbl.grid(row=8, column=1, sticky=tk.E)
+      objDBPassText.grid(row=8, column=2)
+      objNoteLbl.grid(row=8, column=3, padx=5, sticky=tk.W)
 
   def MyTimer():
     global iTimer
@@ -528,10 +625,6 @@ def ShowGUI():
                         height=1, command=ShTOTP)
     btnTOTP.grid(row=4, column=3, padx=10)
 
-    btnConfig = tk.Button(objMainWin, text="Config", width=8,
-                          height=1, command=Config)
-    #btnConfig.grid(row=4, column=6)
-
     btnLogin = tk.Button(objMainWin, text="Login", width=8,
                         height=1, command=Login)
     btnLogin.grid(row=2, column=6, padx=45)
@@ -546,10 +639,6 @@ def ShowGUI():
     btnDel = tk.Button(objMainWin, text="Delete", width=8,
                       height=1, command=ItemDel)
     btnDel.grid(row=5, column=3, padx=10)
-
-    btnReset = tk.Button(objMainWin, text="DB Wipe", width=10,
-                        height=1, command=DBWipe)
-    #btnReset.grid(row=5, column=6, padx=0)
 
     objPWDLabel = tk.Label(objMainWin, text="Please enter your password")
     objPWDText = tk.Entry(objMainWin, width=25, show="*")

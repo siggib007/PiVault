@@ -23,7 +23,8 @@ HIDEINPUT: 'true'
 VAULTPWD: SuperStrongsecretPWD!
 STORE: sqlite
 VALUECOLOR: blue
-VAULT: ~/PieVault 
+VAULT: ~/PieVault
+TABLE: tblVault
 ```
 
 ## Redis
@@ -34,7 +35,7 @@ HIDEINPUT: 'true' # optional defaults to true
 VAULTPWD: SuperStrongsecretPWD!
 STORE: redis #required
 VALUECOLOR: blue # Optional defaults to red
-DB: '0' #required
+DB: '0' # required adjust to suite your environment
 HIDEINPUT: 'true' # Optional, defaults to false
 HOST: localhost # required
 PORT: '6379' # required
@@ -54,5 +55,6 @@ HIDEINPUT: true # Optional, defaults to false
 HOST: localhost # required, use correct hostname
 DBUSER: script # required, use correct value for your installation
 DBPWD: SecretDBPassword   # Required
+TABLE: tblVault # Optional. Defaults to tblVault
 ```
 
