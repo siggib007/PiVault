@@ -4,52 +4,52 @@ NAME
     PiVault
 
 DESCRIPTION
-    Very simply secrets vault. 
+    Very simply secrets vault.
      - Takes in a string, encrypts it and stores the encrypted string.
      - Then retrieves the encrypted string and decrypts it for use
-    
+
     Author Siggi Bjarnason AUG 2022
     Copyright 2022
-    
+
     Encrypt/decrypt functions copied from https://stackoverflow.com/a/44212550/8549454
-    
+
     Following packages need to be installed for base functionality
     pip install pycryptodome
     pip install maskpass
-    
+
     If you want to use clipboard feature
     pip install pyperclip
-    
+
     If you are using Redis also:
     pip install redis
-    
+
     If you are using TOTP feature
     pip install pyotp
 
 FUNCTIONS
     AddFileItem(strKey, strValue, bConf=True, strPass='')
-        Function that encrypts the string provided and 
+        Function that encrypts the string provided and
         stores the key value pair in the file system data store
         Parameters:
           strKey: The name of the key part of the key value pair
           strValue: The value part of the key value pair
           bConf: Optional, defaults to True. If key updates should be confirmed
-          strPass: Optional, defaults to blank string. Use a password other than 
+          strPass: Optional, defaults to blank string. Use a password other than
                     that validated by login function
         Returns:
           True/false boolean to indicate if the was successful or not
-    
+
     AddItem(strKey, strValue, bConf=True, strPass='')
         Function that calls the right function to encrypt and store the value depend on selected store
         Parameters:
           strKey: The name of the key part of the key value pair
           strValue: The value part of the key value pair
           bConf: Optional, defaults to True. If key updates should be confirmed
-          strPass: Optional, defaults to blank string. Use a password other than 
+          strPass: Optional, defaults to blank string. Use a password other than
                     that validated by login function
         Returns:
           True/false boolean to indicate if the was successful or not
-    
+
     AddRedisItem(strKey, strValue, bConf=True, strPass='')
         Function that encrypts the string provided and
         stores the key value pair in the Redis data store
@@ -61,7 +61,7 @@ FUNCTIONS
                     that validated by login function
         Returns:
           True/false boolean to indicate if the value was successful or not
-    
+
     AddSQLItem(strKey, strValue, bConf=True, strPass='')
         Function that encrypts the string provided and
         stores the key value pair in the selected database
@@ -73,14 +73,14 @@ FUNCTIONS
                     that validated by login function
         Returns:
           True/false boolean to indicate if the value was successful or not
-    
-    ChangePWD()
+
+    ChangePWD(strNewPWD)
         Function that loops through all items in the store, decrypts it then re-encrypts with new password.
         Parameters:
           none
         Returns:
           nothing
-    
+
     CheckDependency(Module)
         Function that installs missing depedencies
         Parameters:
@@ -99,14 +99,29 @@ FUNCTIONS
               stderr: Nonetype
               args: module name as passed in
               success: True as a boolean
-    
+
     CheckVault()
         Function used by login function to check the vault.
         Parameters:
           none
         Returns:
           true/false indicating if the vault is good or not
-    
+
+    CreateConfig(dictOut)
+        Function that Creates a configuration file that can be customized
+        then used instead of environment variables
+        Parameters:
+          dictOut: Dictionary object of configuration items
+        Returns:
+          tru/false indicating success of failure
+
+    DBClean(strText)
+        Function that removes undesirables from a string to prevent SQL injection
+        Parameters:
+          strText: String to be cleaned
+        Returns:
+          Clean string that is safe to send to database query
+
     DBConnect(*, DBType, Server, DBUser='', DBPWD='', Database='')
         Function that handles establishing a connection to a specified database
         imports the right module depending on database type
@@ -119,7 +134,7 @@ FUNCTIONS
           Database  : The name of the database to use
         Returns:
           Connection object to be used by query function, or an error string
-    
+
     DBQuery(*, SQL, dbConn)
         Function that handles executing a SQL query using a predefined connection object
         imports the right module depending on database type
@@ -129,35 +144,35 @@ FUNCTIONS
         Returns:
           NoneType for queries other than select, DBCursor object with the results from the select query
           or error message as a string
-    
+
     DefineColors()
         Simple function that loads the dictColor dictionary of colors
         Parameters:
           none
         Returns:
           Sets global variable dictColor but returns nothing
-    
+
     DefineMenu()
         Simple function that loads the menu into a global dictionary dictMenu
         Parameters:
           none
         Returns:
           Sets global variable dictMenu but returns nothing
-    
+
     DelItem(strKey)
         Function that removes a key from the datastore
         Parameters:
           strKey: The name of the key part of the key value pair
         Returns:
           Nothing
-    
+
     DisplayHelp()
         Function that displays a help message.
         Parameters:
           none
         Returns:
           none
-    
+
     Fetch2Clip(strKey)
         Function that fetches the specified key from the datastore and decrypts it.
         Decrypted value is then placed on the clipboard and not shown.
@@ -165,79 +180,94 @@ FUNCTIONS
           strKey: The name of the key to be fetched
         Returns:
           nothing
-    
+
     FetchEnv(strVarName)
-        Function that fetches the specified content of specified environment variable, 
+        Function that fetches the specified content of specified environment variable,
         converting nonetype to empty string.
         Parameters:
           strVarName: The name of the environment variable to be fetched
         Returns:
           The content of the environment or empty string
-    
+
     FetchFileItem(strKey)
         Function that fetches the specified key from the file store and decrypts it.
         Parameters:
           strKey: The name of the key to be fetched
         Returns:
           Either the decrypted string or boolean false to indicate a failure
-    
+
     FetchItem(strKey)
         Function that calls the right function to fetch and decrypt depend on selected store
         Parameters:
           strKey: The name of the key to be fetched
         Returns:
           Either the decrypted string or boolean false to indicate a failure
-    
+
     FetchRedisItem(strKey)
         Function that fetches the specified key from Redis and decrypts it.
         Parameters:
           strKey: The name of the key to be fetched
         Returns:
           Either the decrypted string or boolean false to indicate a failure
-    
+
     FetchSQLItem(strKey)
         Function that fetches the specified key from database and decrypts it.
         Parameters:
           strKey: The name of the key to be fetched
         Returns:
           Either the decrypted string or boolean false to indicate a failure
-    
+
     GetFileHandle(strFileName, strperm)
-        This wraps error handling around standard file open function 
+        This wraps error handling around standard file open function
         Parameters:
           strFileName: Simple string with filename to be opened
           strperm: single character string, usually w or r to indicate read vs write. other options such as "a" are valid too.
         Returns:
           File Handle object
-    
+
     ListCount()
         Function that displays information about status of the vault and number of members.
         Parameters:
           none
         Returns:
           nothing
-    
+
     ListItems()
         Function that just lists out all the keys in the store.
         Parameters:
           none
         Returns:
           nothing
-    
+
+    MsgOut(strMsg)
+        Function that check quiet environment variable and only prints if it is false
+        Parameters:
+          strMsg: String to be printed
+        Returns:
+          Nothing
+
+    PrepConfig()
+        Function that Creates a dictionary of configuration items
+        for use by the configuration file creator
+        Parameters:
+          nothing
+        Returns:
+          dictionary object of all configuration items.
+
     ProcessCMD(objCmd)
         Function that process all the user commands, whether in the shell or from command arguments.
         Parameters:
           objCmd: The command string, either simple string or an array of strings
         Returns:
           nothing
-    
+
     ResetStore()
         Function that completely resets the choosen store to a blank slate
         Parameters:
           none
         Returns:
           Nothing
-    
+
     SQLOp(strCmd, strKey='', strValue='')
         This handles all database operations
         Parameters:
@@ -246,7 +276,14 @@ FUNCTIONS
           strValue: Optional, defaults to an empty string. The value part of the key value pair.
         Returns:
           Decrypted clear text simple string
-    
+
+    ShowGUI()
+        Function that handles the whole GUI. All GUI functions and code are here
+        Parameters:
+          nothing
+        Returns:
+          nothing
+
     ShowTOTP(strKey)
         Function that fetches the specified key from the datastore and decrypts it.
         Decrypted value is then used to generate a time based one time token.
@@ -254,7 +291,7 @@ FUNCTIONS
           strKey: The name of the key to be fetched
         Returns:
           A string with the generated token, or bolean false on failure
-    
+
     StringDecryptor(strPWD, strData, decode=True)
         This handles decrypting a string encrypted with AES
         Adopted from https://stackoverflow.com/a/44212550/8549454
@@ -264,7 +301,7 @@ FUNCTIONS
           encode: Optional, defaults to true. A boolean to indicate if the data is Base64 encoded.
         Returns:
           Decrypted clear text simple string
-    
+
     StringEncryptor(strPWD, strData, encode=True)
         This handles encrypting a string using AES.
         Adopted from https://stackoverflow.com/a/44212550/8549454
@@ -274,21 +311,35 @@ FUNCTIONS
           encode: Optional, defaults to true. A boolean to indicate the return should be Base64 encoded.
         Returns:
           Encrypted string, either raw or base64 encoded depending on the encode parameter
-    
+
     UserLogin()
         Simple function that handles validating that password is valid across all items in the vault
         Parameters:
           none
         Returns:
           true/false boolean to indicate if password supplied is good or not
-    
+
     VaultInit()
         Function that handles initial inititialization of the specified store.
         Parameters:
           none
         Returns:
           nothing returned. Applicable global variables are set.
-    
+
+    isFloat(fValue)
+        Function checks if a value is a floating point number
+        Parameters:
+          fValue: String to be evaluated
+        Returns:
+          true/false
+
+    isInt(CheckValue)
+        Function checks if a value is an integer
+        Parameters:
+          CheckValue: String to be evaluated
+        Returns:
+          true/false
+
     main()
         Initial entry point where some of the initialization takes place.
         Parameters:
@@ -296,13 +347,27 @@ FUNCTIONS
         Returns:
           nothing
 
+    processConf(strConf_File)
+        Function that processes a configuration file that can be customized
+        then used instead of environment variables
+        Parameters:
+          nothing
+        Returns:
+          Nothing
+
 DATA
+    bDefAutoHide = True
     bDefHide = False
     bLoggedIn = False
-    dictComponents = {}
+    dictComponents = {'------------------': '-----------', 'aiofiles': '0....
+    iDefShowTime = 30
+    iTimer = 0
     lstDBTypes = ['sqlite', 'mysql', 'postgres', 'mssql']
-    strCheckFile = 'VaultInit'
+    lstStoreTypes = ['files', 'redis']
+    strCheckKey = 'VaultInit'
     strCheckValue = 'This is a simple secrets vault'
     strDefStore = 'files'
+    strDefTable = 'tblVault'
     strDefValueColor = 'red'
     strDefVault = 'VaultData'
+    strICOFile = 'PieLock.ico'

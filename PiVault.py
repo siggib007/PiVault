@@ -120,6 +120,13 @@ import maskpass
 # End imports
 
 def ShowGUI():
+  """
+  Function that handles the whole GUI. All GUI functions and code are here
+  Parameters:
+    nothing
+  Returns:
+    nothing
+  """
   global iTimer
 
   import os
@@ -131,6 +138,13 @@ def ShowGUI():
     return
 
   def Config():
+    """
+    Part of ShowGUI. Function that handles the Preferences Config Window
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     global iClippy
     global iHideIn
     global strStoreType
@@ -278,6 +292,15 @@ def ShowGUI():
     UpdateView(strStore)
 
   def SaveConfig():
+    """
+    Part of ShowGUI. Function that handles collecting data from Preference window
+    and passing it onto the create config file function in the main code
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
+
     dictConfFile = {}
     if iClippy.get() == 1:
       dictConfFile["CLIPPYENABLE"] = "true"
@@ -302,6 +325,15 @@ def ShowGUI():
     objConfWin.destroy()
 
   def UpdateView(strTemp):
+    """
+    Part of ShowGUI. Function that handles making the Preferences Config Window
+    dynamic based on what is selected in the Store dropdown box.
+    Parameters:
+      strTemp: String indicating the value selected
+    Returns:
+      nothing
+    """
+
     if strTemp == "files":
       objVaultLbl.grid(row=2, column=1, sticky=tk.E)
       objVaultText.grid(row=2, column=2)
@@ -384,6 +416,14 @@ def ShowGUI():
       objNoteLbl.grid(row=8, column=3, padx=5, sticky=tk.W)
 
   def MyTimer():
+    """
+    Part of ShowGUI. Function that handles counting down in the gui
+    Used by the show value to automatically hide the value after few seconds
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     global iTimer
 
     iTimer -= 1
@@ -398,6 +438,14 @@ def ShowGUI():
       objCountdown.grid_remove()
 
   def Login():
+    """
+    Part of ShowGUI. Function that make login fields visible
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
+
     btnLogin.grid_remove
     objPWDNote.grid_remove()
     objPWDLabel.grid(row=0, column=6, padx=20)
@@ -407,6 +455,15 @@ def ShowGUI():
     btnAuth.grid(row=2, column=6, padx=20)
 
   def Auth():
+    """
+    Part of ShowGUI. Function that collects the login info
+    and passess it to the userlogin function in main code
+    then hides the login fields if successful
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     if objPWDText.get() == "":
       return
     objPWDLabel.grid_remove()
@@ -436,6 +493,13 @@ def ShowGUI():
           btnAuth.cget("text")))
 
   def CopyValue():
+    """
+    Part of ShowGUI. Function that fetches value, decrypts it and places it on the clipboard.
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     lstSel = objItemsLB.curselection()
     if len(lstSel) > 0:
       strSel = objItemsLB.get(lstSel[0])
@@ -447,6 +511,14 @@ def ShowGUI():
       objMsg1.config(text=strMsg)
 
   def ShowValue():
+    """
+    Part of ShowGUI. Function that fetches value, decrypts it
+    and writes it in the right field on the window.
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     global iTimer
     global objHide
 
@@ -483,6 +555,14 @@ def ShowGUI():
       iTimer = 0
 
   def ShTOTP():
+    """
+    Part of ShowGUI. Function that fetches TOTP secret, decrypts it,
+    calculated the TOTP number and writes it in the right field on the window.
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     lstSel = objItemsLB.curselection()
     if len(lstSel) > 0:
       strSel = objItemsLB.get(lstSel[0])
@@ -502,10 +582,26 @@ def ShowGUI():
       objMainWin.after(iShowTime*1000, ClearTOTP)
 
   def ClearTOTP():
+    """
+    Part of ShowGUI. Function that clears the TOTP value from the screen
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
+
     objCountdown.config(text="")
     objCountdown.grid_remove()
 
   def AddKey():
+    """
+    Part of ShowGUI. Function that collects new key details from the UI
+    and passess it to the right functions in the main code.
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     bCont = True
     bUpdate = False
     strKey = objKeyText.get()
@@ -535,6 +631,14 @@ def ShowGUI():
       objMsg1.config(text=strMsg)
 
   def ChgPWD():
+    """
+    Part of ShowGUI. Function that handles collecting new password
+    and calls the right functions in the main code
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     objPWDLabel.config(text="New Password")
     Login()
     objPWDText.delete(0, tk.END)
@@ -542,6 +646,13 @@ def ShowGUI():
     btnChgPwd.grid_remove()
 
   def ItemDel():
+    """
+    Part of ShowGUI. Function that deletes the selected value
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     lstSel = objItemsLB.curselection()
     if len(lstSel) > 0:
       strSel = objItemsLB.get(lstSel[0])
@@ -557,6 +668,13 @@ def ShowGUI():
     objMsg1.config(text=strMsg)
 
   def DBWipe():
+    """
+    Part of ShowGUI. Function that wipes the current database clean
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
     strReponse = mb.askquestion(
         "Wipe the database", "Are you sure you want to completely nuke the database? \nTHIS ACTION IS IRREVERSABLE")
     if strReponse == "yes":
@@ -564,6 +682,14 @@ def ShowGUI():
       objMainWin.destroy()
 
   def GUILayout():
+    """
+    Part of ShowGUI. Main window layout function
+    Parameters:
+      nothing
+    Returns:
+      nothing
+    """
+
     global objMainWin
     global objCountdown
     global btnShow
