@@ -963,6 +963,7 @@ def DefineMenu():
   dictMenu["totp"]   = "Displays TOTP code for the secret stored at the specified key"
   dictMenu["create"] = "Create a configuration file based on current environment"
   dictMenu["gui"]    = "Starts the GUI"
+  dictMenu["login"]  = "Prompts for Vault password. Should never be needed manually as you are prompted when needed"
 
 def DefineColors():
   """
@@ -1095,6 +1096,7 @@ def UserLogin():
       if FetchItem(lstVault[0]) == "Failed to decrypt":
         print("unable to decrypt vault, please try to login again")
         bLoggedIn = False
+        strPWD = ""
         return False
     AddItem(strCheckKey, strCheckValue)
     MsgOut("Vault Initialized")
@@ -1107,6 +1109,7 @@ def UserLogin():
   else:
     print("unable to decrypt vault, please try again")
     bLoggedIn = False
+    strPWD = ""
     return False
 
 def Fetch2Clip(strKey):
@@ -1300,13 +1303,17 @@ def ProcessCMD(objCmd):
   elif strCmd == "list":
     ListItems()
   elif strCmd == "passwd":
-    strNewPWD = maskpass.askpass(
-        prompt="Please provide New password: ", mask="*")
-    if(ChangePWD(strNewPWD)):
-      print("Password successfully changed")
-    else:
-      print("Password changed failed on {} of {} entries. "
-      "The following keys failed {}".format(len(lstFailed),len(lstVault),(lstFailed)))
+    bLogin = True
+    if not bLoggedIn:
+      bLogin = UserLogin()
+    if bLogin:
+      strNewPWD = maskpass.askpass(
+          prompt="Please provide New password: ", mask="*")
+      if(ChangePWD(strNewPWD)):
+        print("Password successfully changed")
+      else:
+        print("Password changed failed on {} of {} entries. "
+        "The following keys failed {}".format(len(lstFailed),len(lstVault),(lstFailed)))
   elif strCmd == "fetch":
     bLogin = True
     if not bLoggedIn:
@@ -1392,6 +1399,8 @@ def ProcessCMD(objCmd):
           MsgOut("Your code is on the clipboard as well")
       else:
         print("failed to generate code")
+  elif strCmd == "login":
+    UserLogin()
   elif strCmd == "gui":
     bQuiet = True
     ShowGUI()
@@ -1735,6 +1744,8 @@ def FetchItem(strKey):
     Either the decrypted string or boolean false to indicate a failure
   """
   strKey = DBClean(strKey)
+  if strKey not in lstVault:
+    return "  -- ERROR: Invalid key {}. Use list option for a list of valid keys".format(strKey)
   if strStore.lower() == "files":
     return FetchFileItem(strKey)
   elif strStore.lower() == "redis":
@@ -1936,7 +1947,6 @@ def main():
     bAutoHide = True
   else:
     bAutoHide = False
-
 
   if strHideIn == "":
     bHideValueIn = bDefHide
